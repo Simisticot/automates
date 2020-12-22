@@ -3,7 +3,6 @@
 
 typedef struct AFND
 {
-	int etat;
 	int nbEtats;
 	int** nbTransitions;
 	int*** transition;
@@ -25,45 +24,32 @@ void construireAFNDLangageUnCar(AFND* automate, char c);
 //valorise les nombres d'états, états initiaux et états finaux puis alloue les tableaux correspondants.
 void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int nbEtatsFinaux);
 
+//libère la mémoire allouée à un automate fini non déterministe
+void desallouerAFND(AFND* automate);
+
 int main(int argc, char const *argv[])
 {
-
+	//cas de test où on construit un automate qui reconnaît le mot "3" (3 -> caractère 51 en ASCII)
 	AFND automate3;
 	construireAFNDLangageUnCar(&automate3,51);
 
 	printf("première transition de 0 vers 1 : %d\n",automate3.transition[0][1][0]);
 
-	free(automate3.transition[0][1]);
-	free(automate3.transition[1][2]);
-
-	for (int i = 0; i < automate3.nbEtats; ++i)
-	{
-		free(automate3.transition[i]);
-	}
-
-	for (int i = 0; i < automate3.nbEtats; ++i)
-	{
-		free(automate3.nbTransitions[i]);
-	}
-
-	free(automate3.nbTransitions);
-	free(automate3.initial);
-	free(automate3.final);
-	free(automate3.transition);
+	desallouerAFND(&automate3);
 	
 	return 0;
 }
 
 void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int nbEtatsFinaux){
 	automate->nbEtats = nbEtats;
-	automate->transition = malloc(sizeof(int*)*automate->nbEtats);
+	automate->transition = malloc(sizeof(int**)*automate->nbEtats);
 
 	for (int i = 0; i < automate->nbEtats; i++)
 	{
 		automate->transition[i] = malloc(sizeof(int*)*automate->nbEtats);
 	}
 
-	automate->nbTransitions = malloc(sizeof(int*)*automate->nbEtats);
+	automate->nbTransitions = malloc(sizeof(int**)*automate->nbEtats);
 	
 	for (int i = 0; i < automate->nbEtats; i++)
 	{
@@ -81,7 +67,6 @@ void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int 
 
 void construireAFNDMotVide(AFND* automate){
 	construireAFNDVierge(automate, 2, 1, 1);
-	automate->etat = 0;
 	automate->initial[0] = 0;
 	automate->final[0] = 0;
 
@@ -98,7 +83,6 @@ void construireAFNDMotVide(AFND* automate){
 
 void construireAFNDLangageVide(AFND* automate){
 	construireAFNDVierge(automate, 1, 1, 0);
-	automate->etat = 0;
 	automate->initial[0] = 0;
 	automate->nbTransitions[0][0] = 0;
 }
@@ -107,9 +91,6 @@ void construireAFNDLangageUnCar(AFND* automate, char c){
 	
 	//remplissage des valeurs triviales
 	construireAFNDVierge(automate, 3, 1, 1);
-
-	//état courant
-	automate->etat = 0;
 
 	//état initial
 	automate->initial[0] = 0;
@@ -143,4 +124,23 @@ void construireAFNDLangageUnCar(AFND* automate, char c){
 		automate->transition[1][2][i] = i;
 	}
 
+}
+
+void desallouerAFND(AFND* automate){
+	int i,j,k;
+
+	for(i = 0; i < automate->nbEtats; i++){
+		for(j = 0; j < automate->nbEtats; j++){
+			if(automate->nbTransitions[i][j] > 0){
+				free(automate->transition[i][j]);
+			}
+		}
+		free(automate->nbTransitions[i]);
+		free(automate->transition[i]);
+	}
+
+	free(automate->nbTransitions);
+	free(automate->transition);
+	free(automate->initial);
+	free(automate->final);
 }
