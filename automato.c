@@ -12,6 +12,15 @@ typedef struct AFND
 	int* final;
 } AFND;
 
+typedef struct AFD
+{
+	int nbEtats;
+	int* transition[256];
+	int initial;
+	int nbEtatsFinaux;
+	int* final;	
+} AFD;
+
 //construit un automate non déterministe reconnaissant le langage qui contient le seul mot vide
 void construireAFNDMotVide(AFND* automate);
 
@@ -27,25 +36,67 @@ void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int 
 //libère la mémoire allouée à un automate fini non déterministe
 void desallouerAFND(AFND* automate);
 
+//construit un automate non déterministe reconnaissant l'union des langages des deux automates non déterministes en entrée
 void unionAFND(AFND* automate1, AFND* automate2, AFND* automate_union);
+
+//valorise les nombres d'états, états initiaux et états finaux puis alloue le tableau d'états finaux
+void construireAFDVierge(AFD* automate, int nbEtats, int nbEtatsFinaux);
+
+//libère la mémoire allouée à un automate fini déterministe
+void desallouerAFD(AFD* automate);
 
 int main(int argc, char const *argv[])
 {
 	//cas de test où on construit un automate qui reconnaît le mot "3" (3 -> caractère 51 en ASCII)
-	AFND automate3;
-	AFND automateMotVide;
-	AFND union_3MotVide;
-	construireAFNDLangageUnCar(&automate3,51);
-	construireAFNDMotVide(&automateMotVide);
-	unionAFND(&automate3,&automateMotVide,&union_3MotVide);
+	// AFND automate3;
+	// AFND automateMotVide;
+	// AFND union_3MotVide;
+	// construireAFNDLangageUnCar(&automate3,51);
+	// construireAFNDMotVide(&automateMotVide);
+	// unionAFND(&automate3,&automateMotVide,&union_3MotVide);
 
-	printf("2e etat initial : %d\n",union_3MotVide.initial[1]);
+	// printf("2e etat initial : %d\n",union_3MotVide.initial[1]);
 
-	desallouerAFND(&automate3);
-	desallouerAFND(&automateMotVide);
-	desallouerAFND(&union_3MotVide);
+	// desallouerAFND(&automate3);
+	// desallouerAFND(&automateMotVide);
+	// desallouerAFND(&union_3MotVide);
+
+	AFD automateDeter;
+
+	construireAFDVierge(&automateDeter, 3, 1);
+
+	printf("nbEtats : %d\n",automateDeter.nbEtats);
+
+	desallouerAFD(&automateDeter);
 	
 	return 0;
+}
+
+void desallouerAFD(AFD* automate)
+{
+	for (int i = 0; i < 256; i++)
+	{
+		free(automate->transition[i]);
+	}
+	free(automate->final);
+}
+
+void construireAFDVierge(AFD* automate, int nbEtats, int nbEtatsFinaux)
+{
+	automate->nbEtats = nbEtats;
+	automate->nbEtatsFinaux = nbEtatsFinaux;
+
+	for (int i = 0; i < 256; i++)
+	{
+		automate->transition[i] = malloc(sizeof(int)*automate->nbEtats);
+		for (int j = 0; j < automate->nbEtats; j++)
+		{
+			automate->transition[i][j] = -1;
+		}
+	}
+
+	automate->final = malloc(sizeof(int)*automate->nbEtatsFinaux);
+
 }
 
 void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int nbEtatsFinaux)
