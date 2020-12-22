@@ -27,20 +27,29 @@ void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int 
 //libère la mémoire allouée à un automate fini non déterministe
 void desallouerAFND(AFND* automate);
 
+void unionAFND(AFND* automate1, AFND* automate2, AFND* automate_union);
+
 int main(int argc, char const *argv[])
 {
 	//cas de test où on construit un automate qui reconnaît le mot "3" (3 -> caractère 51 en ASCII)
 	AFND automate3;
+	AFND automateMotVide;
+	AFND union_3MotVide;
 	construireAFNDLangageUnCar(&automate3,51);
+	construireAFNDMotVide(&automateMotVide);
+	unionAFND(&automate3,&automateMotVide,&union_3MotVide);
 
-	printf("première transition de 0 vers 1 : %d\n",automate3.transition[0][1][0]);
+	printf("2e etat initial : %d\n",union_3MotVide.initial[1]);
 
 	desallouerAFND(&automate3);
+	desallouerAFND(&automateMotVide);
+	desallouerAFND(&union_3MotVide);
 	
 	return 0;
 }
 
-void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int nbEtatsFinaux){
+void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int nbEtatsFinaux)
+{
 	automate->nbEtats = nbEtats;
 	automate->transition = malloc(sizeof(int**)*automate->nbEtats);
 
@@ -65,7 +74,8 @@ void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int 
 }
 
 
-void construireAFNDMotVide(AFND* automate){
+void construireAFNDMotVide(AFND* automate)
+{
 	construireAFNDVierge(automate, 2, 1, 1);
 	automate->initial[0] = 0;
 	automate->final[0] = 0;
@@ -81,13 +91,15 @@ void construireAFNDMotVide(AFND* automate){
 	}
 }
 
-void construireAFNDLangageVide(AFND* automate){
+void construireAFNDLangageVide(AFND* automate)
+{
 	construireAFNDVierge(automate, 1, 1, 0);
 	automate->initial[0] = 0;
 	automate->nbTransitions[0][0] = 0;
 }
 
-void construireAFNDLangageUnCar(AFND* automate, char c){
+void construireAFNDLangageUnCar(AFND* automate, char c)
+{
 	
 	//remplissage des valeurs triviales
 	construireAFNDVierge(automate, 3, 1, 1);
@@ -126,7 +138,8 @@ void construireAFNDLangageUnCar(AFND* automate, char c){
 
 }
 
-void desallouerAFND(AFND* automate){
+void desallouerAFND(AFND* automate)
+{
 	int i,j,k;
 
 	for(i = 0; i < automate->nbEtats; i++){
@@ -143,4 +156,69 @@ void desallouerAFND(AFND* automate){
 	free(automate->transition);
 	free(automate->initial);
 	free(automate->final);
+}
+
+void unionAFND(AFND* automate1, AFND* automate2, AFND* automate_union)
+{
+	int i,j,k;
+	construireAFNDVierge(automate_union, automate1->nbEtats + automate2->nbEtats, automate1->nbEtatsInitiaux + automate2->nbEtatsInitiaux, automate1->nbEtatsFinaux + automate2->nbEtatsFinaux);
+
+	//ajout des états initiaux des automates 1 et 2, les uns à la suite des autres
+	for (i = 0; i < automate_union->nbEtatsInitiaux; i++)
+	{
+		automate_union->initial[i] = automate1->initial[i];
+	}
+
+	for(i = automate1->nbEtatsInitiaux; i <automate1->nbEtatsInitiaux + automate2->nbEtatsInitiaux; i++)
+	{
+		automate_union->initial[i] = automate2->initial[i-automate1->nbEtatsInitiaux] + automate1->nbEtats;
+	}
+
+
+	//ajout des états finaux des automates 1 et 2, les uns à la suite des autres
+	for (i = 0; i < automate_union->nbEtatsFinaux; i++)
+	{
+		automate_union->final[i] = automate1->final[i];
+	}
+
+	for(i = automate1->nbEtatsFinaux; i <automate1->nbEtatsFinaux + automate2->nbEtatsFinaux; i++)
+	{
+		automate_union->final[i] = automate2->final[i-automate1->nbEtatsFinaux] + automate1->nbEtats;
+	}
+
+	//ajout des transitions de l'automate 1
+	for (i = 0; i < automate1->nbEtats; i++)
+	{
+		for (j = 0; j < automate1->nbEtats; j++)
+		{
+			automate_union->nbTransitions[i][j] = automate1->nbTransitions[i][j];
+			if(automate_union->nbTransitions[i][j] > 0)
+			{
+				automate_union->transition[i][j] = malloc(sizeof(int)*automate_union->nbTransitions[i][j]);
+			}
+
+			for (k = 0; k < automate_union->nbTransitions[i][j]; k++)
+			{
+				automate_union->transition[i][j][k] = automate1->transition[i][j][k];
+			}
+		}
+	}
+
+	//ajout des transitions de l'automate 2
+	for (i = automate1->nbEtats; i < automate1->nbEtats + automate2->nbEtats; i++)
+	{
+		for (j = automate1->nbEtats; j < automate1->nbEtats + automate2->nbEtats; j++)
+		{
+			automate_union->nbTransitions[i][j] = automate2->nbTransitions[i - automate1->nbEtats][j - automate1->nbEtats];
+			if(automate_union->nbTransitions[i][j] > 0)
+			{
+				automate_union->transition[i][j] = malloc(sizeof(int)*automate_union->nbTransitions[i][j]);
+			}
+
+			for (k = 0; k < automate_union->nbTransitions[i][j]; k++)
+			{
+				automate_union->transition[i][j][k] = automate2->transition[i - automate1->nbEtats][j - automate1->nbEtats][k];
+			}
+		}
+	}
 }
