@@ -45,31 +45,232 @@ void construireAFDVierge(AFD* automate, int nbEtats, int nbEtatsFinaux);
 //libère la mémoire allouée à un automate fini déterministe
 void desallouerAFD(AFD* automate);
 
+//déterminise un automate fini non déterministe
+void determiniser(AFND* nonDeter, AFD* deter);
+
+//retourne vrai si les deux états ont le même nombre de composantes et si chaque composante de l'état 1 est présente dans l'état 2
+int est_meme_etat(int compEtat1, int compEtat2, int* tableEtat1, int* tableEtat2);
+
 int main(int argc, char const *argv[])
 {
-	//cas de test où on construit un automate qui reconnaît le mot "3" (3 -> caractère 51 en ASCII)
-	// AFND automate3;
-	// AFND automateMotVide;
-	// AFND union_3MotVide;
-	// construireAFNDLangageUnCar(&automate3,51);
-	// construireAFNDMotVide(&automateMotVide);
-	// unionAFND(&automate3,&automateMotVide,&union_3MotVide);
 
-	// printf("2e etat initial : %d\n",union_3MotVide.initial[1]);
+	AFND automate3;
+	AFND automateMotVide;
+	AFND union_3MotVide;
 
-	// desallouerAFND(&automate3);
-	// desallouerAFND(&automateMotVide);
-	// desallouerAFND(&union_3MotVide);
+	AFD union_3MotVideDeter;
 
-	AFD automateDeter;
+	construireAFNDLangageUnCar(&automate3,51);
+	construireAFNDMotVide(&automateMotVide);
+	unionAFND(&automate3,&automateMotVide,&union_3MotVide);
 
-	construireAFDVierge(&automateDeter, 3, 1);
+	determiniser(&union_3MotVide, &union_3MotVideDeter);
 
-	printf("nbEtats : %d\n",automateDeter.nbEtats);
+	printf("nombre d'états finaux : %d\n",union_3MotVideDeter.nbEtatsFinaux);
+	printf("état final : %d\n",union_3MotVideDeter.final[0]);
 
-	desallouerAFD(&automateDeter);
+	printf("nombre d'états : %d\n",union_3MotVideDeter.nbEtats);
+	// for (int i = 0; i < 256; i++)
+	// {
+	// 	printf("transition via %c depuis 0 : %d\n", i, union_3MotVideDeter.transition[i][0]);
+	// }
+
+	desallouerAFND(&automate3);
+	desallouerAFND(&automateMotVide);
+	desallouerAFND(&union_3MotVide);
+	desallouerAFD(&union_3MotVideDeter);
 	
 	return 0;
+}
+
+void determiniser(AFND* nonDeter, AFD* deter)
+{
+	int i,j,k,l,m;
+	int* transitionDeter[256];
+	int nbEtatsDeter;
+	int* finalDeter;
+	int nbEtatsFinauxDeter;
+	int initialDeter;
+	int curseurEtatDeter;
+	int* tableNouvEtat;
+	int compNouvEtat;
+	int commun;
+	int** tableEtat;
+	int* compEtat;
+	int courant;
+	int duplicat;
+	
+
+	courant = 0;
+	nbEtatsDeter = 1;
+	compEtat = malloc(sizeof(int));
+	compEtat[courant] = nonDeter->nbEtatsInitiaux;
+	tableEtat = malloc(sizeof(int*));
+	tableEtat[courant] = malloc(sizeof(int)*compEtat[courant]);
+
+	for (i = 0; i < 256; i++){
+		transitionDeter[i] = malloc(sizeof(int));
+		transitionDeter[i][0] = -1;
+	}
+
+	for (i = 0; i < compEtat[courant]; i++)
+	{
+		tableEtat[courant][i] = nonDeter->initial[i];
+	}
+
+	while(courant < nbEtatsDeter)
+	{
+		for (i = 0; i < 256; i++)
+		{
+			compNouvEtat = 0;
+			for (j = 0; j < compEtat[courant]; j++)
+			{
+					for (l = 0; l < nonDeter->nbEtats; l++)
+					{
+						for (m = 0; m < nonDeter->nbTransitions[k][l]; m++)
+						{
+							if(nonDeter->transition[courant][l][m] = i)
+							{
+								compNouvEtat++;
+								if(compNouvEtat = 1)
+								{
+									tableNouvEtat = malloc(sizeof(int));
+								}
+								else
+								{
+									tableNouvEtat = realloc(tableNouvEtat, sizeof(int)*compNouvEtat);
+								}
+
+								tableNouvEtat[compNouvEtat-1] = l;
+							}
+						}
+					}
+			}
+			if(compNouvEtat > 0)
+			{
+				duplicat = 0;
+				for (j = 0; j < nbEtatsDeter; j++)
+				{
+					if(est_meme_etat(compNouvEtat,compEtat[j],tableNouvEtat,tableEtat[j]))
+					{
+						duplicat = 1;
+						transitionDeter[i][courant] = j;
+					}
+				}
+				if(duplicat=0)
+				{
+					nbEtatsDeter++;
+					
+					compEtat = realloc(compEtat, sizeof(int)*nbEtatsDeter);
+					tableEtat = realloc(tableEtat, sizeof(int*)*nbEtatsDeter);
+
+					compEtat[nbEtatsDeter-1] = compNouvEtat;
+					
+					for (j = 0; j < compNouvEtat; j++)
+					{
+						tableEtat[nbEtatsDeter-1][j] = tableNouvEtat[j];
+					}
+
+					for (j = 0; j < 256; j++)
+					{
+						transitionDeter[j] = realloc(transitionDeter[j], sizeof(int)*nbEtatsDeter);
+						transitionDeter[j][nbEtatsDeter-1] = -1;
+					}
+					transitionDeter[i][courant] = nbEtatsDeter-1;
+				}
+				
+			}
+			if(compNouvEtat > 0)
+			{
+				free(tableNouvEtat);
+			}
+		}
+		courant++;
+		
+	}
+
+	nbEtatsFinauxDeter = 0;
+	for (i = 0; i < nbEtatsDeter; i++)
+	{
+		for (j = 0; j < compEtat[i]; j++)
+		{
+			for (k = 0; k < nonDeter->nbEtatsFinaux; k++)
+			{
+				if(tableEtat[i][j] = nonDeter->final[k])
+				{
+					nbEtatsFinauxDeter++;
+					if(nbEtatsFinauxDeter = 1)
+					{
+						finalDeter = malloc(sizeof(int));
+					}
+					else
+					{
+						finalDeter = realloc(finalDeter, sizeof(int)*nbEtatsFinauxDeter);
+					}
+					finalDeter[nbEtatsFinauxDeter-1] = i;
+				}
+			}
+		}
+	}
+	construireAFDVierge(deter, nbEtatsDeter, nbEtatsFinauxDeter);
+	
+	deter->initial = 0;
+
+
+	for (i = 0; i < nbEtatsFinauxDeter; i++)
+	{
+		deter->final[i] = finalDeter[i];
+	}
+	free(finalDeter);
+
+	for (i = 0; i < 256; i++)
+	{
+		for (j = 0; j < deter->nbEtats; j++)
+		{
+			deter->transition[i][j] = transitionDeter[i][j];
+		}
+		free(transitionDeter[i]);
+	}
+
+	for(i = 0; i < nbEtatsDeter; i++)
+	{
+		free(tableEtat[i]);
+	}
+	free(tableEtat);
+	free(compEtat);
+
+}
+
+int est_meme_etat(int compEtat1, int compEtat2, int* tableEtat1, int* tableEtat2)
+{
+	int identique;
+	int commun;
+	int i,j;
+	identique = 1;
+
+	if(compEtat1 != compEtat2)
+	{
+		identique = 0;
+	}
+	else
+	{
+		for (i = 0; i < compEtat1; i++)
+		{
+			commun = 0;
+			for (j = 0; j < compEtat2; j++)
+			{
+				if(tableEtat1[i] = tableEtat2[j])
+				{
+					commun = 1;
+				}
+			}
+			if(commun = 0)
+			{
+				identique = 0;
+			}
+		}
+	}
+	return identique;
 }
 
 void desallouerAFD(AFD* automate)
