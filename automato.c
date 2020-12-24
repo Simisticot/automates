@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+//structure représentant un automate fini non déterministe
 typedef struct AFND
 {
 	int nbEtats;
@@ -12,6 +13,7 @@ typedef struct AFND
 	int* final;
 } AFND;
 
+//structure représentant un automate fini déterministe
 typedef struct AFD
 {
 	int nbEtats;
@@ -58,7 +60,7 @@ int main(int argc, char const *argv[])
 {
 
 	AFND automate3;
-	AFND automateMotVide;
+	AFND automateLVide;
 	AFND union_3MotVide;
 
 	char* mot;
@@ -66,8 +68,8 @@ int main(int argc, char const *argv[])
 	AFD union_3MotVideDeter;
 
 	construireAFNDLangageUnCar(&automate3,51);
-	construireAFNDMotVide(&automateMotVide);
-	unionAFND(&automate3,&automateMotVide,&union_3MotVide);
+	construireAFNDLangageVide(&automateLVide);
+	unionAFND(&automate3,&automateLVide,&union_3MotVide);
 
 	determiniser(&union_3MotVide, &union_3MotVideDeter);
 
@@ -93,7 +95,7 @@ int main(int argc, char const *argv[])
 	// 	printf("transition via %c depuis 2 : %d\n", i, union_3MotVideDeter.transition[i][2]);
 	// }
 
-	if(est_reconnu("3",1,&union_3MotVideDeter)){
+	if(est_reconnu("ab3",3,&union_3MotVideDeter)){
 		printf("reconnu\n");
 	}
 	else
@@ -102,7 +104,7 @@ int main(int argc, char const *argv[])
 	}
  
 	desallouerAFND(&automate3);
-	desallouerAFND(&automateMotVide);
+	desallouerAFND(&automateLVide);
 	desallouerAFND(&union_3MotVide);
 	desallouerAFD(&union_3MotVideDeter);
 	
@@ -413,7 +415,8 @@ void construireAFNDLangageVide(AFND* automate)
 
 void construireAFNDLangageUnCar(AFND* automate, char c)
 {
-	
+	int i,j;
+
 	//remplissage des valeurs triviales
 	construireAFNDVierge(automate, 3, 1, 1);
 
@@ -424,10 +427,10 @@ void construireAFNDLangageUnCar(AFND* automate, char c)
 	automate->final[0] = 1;
 	
 	//nombre de transitions par couple d'états
-	//on a une transition de 0 à 1 (par c) et 256 transitions de 1 à 2 (par tous les caractères ASCII)
+	//on a une transition de 0 à 1 (par c), 255 de 0 à 2 (par tous les caractères ASCII sauf c) et 256 transitions de 1 à 2 (par tous les caractères ASCII)
 	automate->nbTransitions[0][0] = 0;
 	automate->nbTransitions[0][1] = 1;
-	automate->nbTransitions[0][2] = 0;
+	automate->nbTransitions[0][2] = 255;
 
 	automate->nbTransitions[1][0] = 0;
 	automate->nbTransitions[1][1] = 0;
@@ -439,13 +442,26 @@ void construireAFNDLangageUnCar(AFND* automate, char c)
 
 	//allocation des tableaux de transitions là où il en existe
 	automate->transition[0][1] = malloc(sizeof(int*)*automate->nbTransitions[0][1]);
+	automate->transition[0][2] = malloc(sizeof(int*)*automate->nbTransitions[0][2]);
 	automate->transition[1][2] = malloc(sizeof(int*)*automate->nbTransitions[1][2]);
+	
 
 	//la transition de 0 à 1 se fait par c, on met donc c dans la seule case de transition[0][1][0]
 	automate->transition[0][1][0] = c;
 
+	//on met tous les caractères ASCII sauf dans les transitions de 0 vers 2 
+	j = 0;
+	for (i = 0; i < automate->nbTransitions[0][2]; i++)
+	{
+		if (i != c)
+		{
+			automate->transition[0][2][j] = i;
+			j++;
+		}
+	}
+
 	//on met un caractère ASCII différent dans chaque case de transition[1][2] jusqu'à ce que tous les caractères ASCII y soient
-	for (int i = 0; i < automate->nbTransitions[1][2]; ++i)
+	for (i = 0; i < automate->nbTransitions[1][2]; i++)
 	{
 		//le fait que la case i contiennet i n'est pas significatif
 		//il importe seulement que le tableau de 256 cases contienne les 256 caractères peu importe leur ordre
