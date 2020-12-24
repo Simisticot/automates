@@ -67,14 +67,27 @@ int main(int argc, char const *argv[])
 	determiniser(&union_3MotVide, &union_3MotVideDeter);
 
 	printf("nombre d'états finaux : %d\n",union_3MotVideDeter.nbEtatsFinaux);
-	printf("état final : %d\n",union_3MotVideDeter.final[0]);
 
+	for (int i = 0; i < automate3.nbEtatsFinaux; ++i)
+	{
+		printf("état final automate 3 : %d\n",automate3.final[i] );
+	}
+
+	for (int i = 0; i < union_3MotVide.nbEtatsFinaux; i++)
+	{
+		printf("état final non deter : %d\n",union_3MotVide.final[i] );
+	}
+
+	for (int i = 0; i < union_3MotVideDeter.nbEtatsFinaux; i++)
+	{
+		printf("état final deter : %d\n",union_3MotVideDeter.final[i] );
+	}
 	printf("nombre d'états : %d\n",union_3MotVideDeter.nbEtats);
 	// for (int i = 0; i < 256; i++)
 	// {
-	// 	printf("transition via %c depuis 0 : %d\n", i, union_3MotVideDeter.transition[i][0]);
+	// 	printf("transition via %c depuis 2 : %d\n", i, union_3MotVideDeter.transition[i][2]);
 	// }
-
+ 
 	desallouerAFND(&automate3);
 	desallouerAFND(&automateMotVide);
 	desallouerAFND(&union_3MotVide);
@@ -99,6 +112,7 @@ void determiniser(AFND* nonDeter, AFD* deter)
 	int* compEtat;
 	int courant;
 	int duplicat;
+	int etatFinalAjoute;
 	
 
 	courant = 0;
@@ -118,7 +132,7 @@ void determiniser(AFND* nonDeter, AFD* deter)
 		tableEtat[courant][i] = nonDeter->initial[i];
 	}
 
-	while(courant < nbEtatsDeter)
+	while(courant <= nbEtatsDeter)
 	{
 		for (i = 0; i < 256; i++)
 		{
@@ -127,12 +141,12 @@ void determiniser(AFND* nonDeter, AFD* deter)
 			{
 					for (l = 0; l < nonDeter->nbEtats; l++)
 					{
-						for (m = 0; m < nonDeter->nbTransitions[k][l]; m++)
+						for (m = 0; m < nonDeter->nbTransitions[tableEtat[courant][j]][l]; m++)
 						{
-							if(nonDeter->transition[courant][l][m] = i)
+							if(nonDeter->transition[tableEtat[courant][j]][l][m] == i)
 							{
 								compNouvEtat++;
-								if(compNouvEtat = 1)
+								if(compNouvEtat == 1)
 								{
 									tableNouvEtat = malloc(sizeof(int));
 								}
@@ -142,6 +156,7 @@ void determiniser(AFND* nonDeter, AFD* deter)
 								}
 
 								tableNouvEtat[compNouvEtat-1] = l;
+
 							}
 						}
 					}
@@ -157,7 +172,7 @@ void determiniser(AFND* nonDeter, AFD* deter)
 						transitionDeter[i][courant] = j;
 					}
 				}
-				if(duplicat=0)
+				if(duplicat==0)
 				{
 					nbEtatsDeter++;
 					
@@ -165,6 +180,8 @@ void determiniser(AFND* nonDeter, AFD* deter)
 					tableEtat = realloc(tableEtat, sizeof(int*)*nbEtatsDeter);
 
 					compEtat[nbEtatsDeter-1] = compNouvEtat;
+
+					tableEtat[nbEtatsDeter-1] = malloc(sizeof(int)*compNouvEtat);
 					
 					for (j = 0; j < compNouvEtat; j++)
 					{
@@ -192,14 +209,15 @@ void determiniser(AFND* nonDeter, AFD* deter)
 	nbEtatsFinauxDeter = 0;
 	for (i = 0; i < nbEtatsDeter; i++)
 	{
+		etatFinalAjoute = 0;
 		for (j = 0; j < compEtat[i]; j++)
 		{
 			for (k = 0; k < nonDeter->nbEtatsFinaux; k++)
 			{
-				if(tableEtat[i][j] = nonDeter->final[k])
+				if(tableEtat[i][j] == nonDeter->final[k] && etatFinalAjoute == 0)
 				{
 					nbEtatsFinauxDeter++;
-					if(nbEtatsFinauxDeter = 1)
+					if(nbEtatsFinauxDeter == 1)
 					{
 						finalDeter = malloc(sizeof(int));
 					}
@@ -208,6 +226,7 @@ void determiniser(AFND* nonDeter, AFD* deter)
 						finalDeter = realloc(finalDeter, sizeof(int)*nbEtatsFinauxDeter);
 					}
 					finalDeter[nbEtatsFinauxDeter-1] = i;
+					etatFinalAjoute = 1;
 				}
 			}
 		}
@@ -259,12 +278,12 @@ int est_meme_etat(int compEtat1, int compEtat2, int* tableEtat1, int* tableEtat2
 			commun = 0;
 			for (j = 0; j < compEtat2; j++)
 			{
-				if(tableEtat1[i] = tableEtat2[j])
+				if(tableEtat1[i] == tableEtat2[j])
 				{
 					commun = 1;
 				}
 			}
-			if(commun = 0)
+			if(commun == 0)
 			{
 				identique = 0;
 			}
@@ -358,6 +377,9 @@ void construireAFNDLangageUnCar(AFND* automate, char c)
 
 	//état initial
 	automate->initial[0] = 0;
+
+	//état final
+	automate->final[0] = 1;
 	
 	//nombre de transitions par couple d'états
 	//on a une transition de 0 à 1 (par c) et 256 transitions de 1 à 2 (par tous les caractères ASCII)
