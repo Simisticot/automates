@@ -51,12 +51,17 @@ void determiniser(AFND* nonDeter, AFD* deter);
 //retourne vrai si les deux états ont le même nombre de composantes et si chaque composante de l'état 1 est présente dans l'état 2
 int est_meme_etat(int compEtat1, int compEtat2, int* tableEtat1, int* tableEtat2);
 
+//retourne vrai si le mot fourni est reconnu par l'automate fourni, retourne faux autrement
+int est_reconnu(char* mot, int longueurMot, AFD* automate);
+
 int main(int argc, char const *argv[])
 {
 
 	AFND automate3;
 	AFND automateMotVide;
 	AFND union_3MotVide;
+
+	char* mot;
 
 	AFD union_3MotVideDeter;
 
@@ -87,6 +92,14 @@ int main(int argc, char const *argv[])
 	// {
 	// 	printf("transition via %c depuis 2 : %d\n", i, union_3MotVideDeter.transition[i][2]);
 	// }
+
+	if(est_reconnu("3",1,&union_3MotVideDeter)){
+		printf("reconnu\n");
+	}
+	else
+	{
+		printf("non reconnu\n");
+	}
  
 	desallouerAFND(&automate3);
 	desallouerAFND(&automateMotVide);
@@ -94,6 +107,35 @@ int main(int argc, char const *argv[])
 	desallouerAFD(&union_3MotVideDeter);
 	
 	return 0;
+}
+
+int est_reconnu(char* mot, int longueurMot, AFD* automate)
+{
+	int etatCourant;
+	int i;
+	int reconnu;
+	reconnu = 0;
+	etatCourant = automate->initial;
+
+	for (i = 0; i < longueurMot; i++)
+	{
+		printf("lecture de %c\n",mot[i] );
+		if(automate->transition[mot[i]][etatCourant] != -1)
+		{
+			etatCourant = automate->transition[mot[i]][etatCourant];
+			printf("transition vers : %d\n", etatCourant);
+		}
+	}
+
+	for(i = 0; i < automate->nbEtatsFinaux; i++)
+	{
+		if(automate->final[i] == etatCourant)
+		{
+			reconnu = 1;
+			printf("%d est accepteur\n",etatCourant );
+		}
+	}
+	return reconnu;
 }
 
 void determiniser(AFND* nonDeter, AFD* deter)
