@@ -56,46 +56,35 @@ int est_meme_etat(int compEtat1, int compEtat2, int* tableEtat1, int* tableEtat2
 //retourne vrai si le mot fourni est reconnu par l'automate fourni, retourne faux autrement
 int est_reconnu(char* mot, int longueurMot, AFD* automate);
 
+//minimise un automate fini déterministe
+void minimiser(AFD* automate, AFD* minimal);
+
 int main(int argc, char const *argv[])
 {
 
 	AFND automate3;
-	AFND automateLVide;
+	AFND automateMotVide;
 	AFND union_3MotVide;
 
 	char* mot;
 
 	AFD union_3MotVideDeter;
+	AFD union_minimale;
 
 	construireAFNDLangageUnCar(&automate3,51);
-	construireAFNDLangageVide(&automateLVide);
-	unionAFND(&automate3,&automateLVide,&union_3MotVide);
+	construireAFNDMotVide(&automateMotVide);
+	unionAFND(&automate3,&automateMotVide,&union_3MotVide);
 
 	determiniser(&union_3MotVide, &union_3MotVideDeter);
 
-	printf("nombre d'états finaux : %d\n",union_3MotVideDeter.nbEtatsFinaux);
+	printf("Nombre d'états avant minimisation : %d\n",union_3MotVideDeter.nbEtats);
 
-	for (int i = 0; i < automate3.nbEtatsFinaux; ++i)
+	minimiser(&union_3MotVideDeter,&union_minimale);
+
+	printf("Nombre d'états après minimisation : %d\n",union_minimale.nbEtats);
+
+	if(est_reconnu("",0,&union_minimale))
 	{
-		printf("état final automate 3 : %d\n",automate3.final[i] );
-	}
-
-	for (int i = 0; i < union_3MotVide.nbEtatsFinaux; i++)
-	{
-		printf("état final non deter : %d\n",union_3MotVide.final[i] );
-	}
-
-	for (int i = 0; i < union_3MotVideDeter.nbEtatsFinaux; i++)
-	{
-		printf("état final deter : %d\n",union_3MotVideDeter.final[i] );
-	}
-	printf("nombre d'états : %d\n",union_3MotVideDeter.nbEtats);
-	// for (int i = 0; i < 256; i++)
-	// {
-	// 	printf("transition via %c depuis 2 : %d\n", i, union_3MotVideDeter.transition[i][2]);
-	// }
-
-	if(est_reconnu("ab3",3,&union_3MotVideDeter)){
 		printf("reconnu\n");
 	}
 	else
@@ -104,11 +93,222 @@ int main(int argc, char const *argv[])
 	}
  
 	desallouerAFND(&automate3);
-	desallouerAFND(&automateLVide);
+	desallouerAFND(&automateMotVide);
 	desallouerAFND(&union_3MotVide);
 	desallouerAFD(&union_3MotVideDeter);
+	desallouerAFD(&union_minimale);
 	
 	return 0;
+}
+
+void minimiser(AFD* automate, AFD* minimal)
+{
+	int i,j,k,l,m;
+	int final;
+	int* classe1;
+	int* classe2;
+	int nbClasses1;
+	int nbClasses2;
+	int* transitionClasse[256];
+	int dest;
+	int arret;
+	int nextClasse;
+	int identique;
+
+	nextClasse = 2;
+
+	arret = 0;
+
+	for (i = 0; i < 256; i++)
+	{
+		transitionClasse[i] = malloc(sizeof(int)*automate->nbEtats);
+	}
+	
+	classe1 = malloc(sizeof(int)*automate->nbEtats);
+	classe2 = malloc(sizeof(int)*automate->nbEtats);
+
+	nbClasses1 = 2;
+	nbClasses2 = 0;
+
+	for (i = 0; i < automate->nbEtats; i++)
+	{
+		final = 0;
+		for (j = 0; j < automate->nbEtatsFinaux; j++)
+		{
+			if (i == automate->final[j])
+			{
+				final = 1;
+			}
+			if (final == 1)
+			{
+				classe1[i] = 0;
+			}
+			else
+			{
+				classe1[i] = 1;
+			}
+		}
+	}
+
+	while(arret == 0)
+	{
+		if(nextClasse == 1)
+		{
+			for (i = 0; i < 256; i++)
+			{
+				for (j = 0; j < automate->nbEtats; j++)
+				{
+					if(automate->transition[i][j] == -1)
+					{
+						transitionClasse[i][j] = -1;
+					}
+					else
+					{
+						transitionClasse[i][j] = classe2[automate->transition[i][j]];
+					}
+				}
+			}
+
+			nbClasses1 = 0;
+			for (i = 0; i < automate->nbEtats; i++)
+			{
+				classe1[i] = nbClasses1;
+				for (j = 0; j < i; j++)
+				{
+					identique = 1;
+					for (k = 0; k < 256; k++)
+					{
+						if(transitionClasse[k][i] != transitionClasse[k][j])
+						{
+							identique = 0;
+						}
+					}
+					if(identique == 1)
+					{
+						classe1[i] = classe1[j];
+					}
+				}
+				if(classe1[i] = nbClasses1){
+					nbClasses1++;
+				}
+			}
+			nextClasse = 2;
+		}
+		else
+		{
+
+			for (i = 0; i < 256; i++)
+			{
+				for (j = 0; j < automate->nbEtats; j++)
+				{
+					if(automate->transition[i][j] == -1)
+					{
+						transitionClasse[i][j] = -1;
+					}
+					else
+					{
+						transitionClasse[i][j] = classe1[automate->transition[i][j]];
+					}
+				}
+			}
+
+			nbClasses2 = 0;
+			for (i = 0; i < automate->nbEtats; i++)
+			{
+				classe2[i] = nbClasses2;
+				for (j = 0; j < i; j++)
+				{
+					identique = 1;
+					for (k = 0; k < 256; k++)
+					{
+						if(transitionClasse[k][i] != transitionClasse[k][j])
+						{
+							identique = 0;
+						}
+					}
+					if(identique == 1)
+					{
+						classe2[i] = classe2[j];
+					}
+				}
+				if(classe2[i] == nbClasses2){
+					nbClasses2++;
+				}
+			}
+			nextClasse = 1;
+		}
+
+		if(nbClasses1 != nbClasses2)
+		{
+			arret = 1;
+		}
+		else
+		{
+			identique = 1;
+			for (i = 0; i < automate->nbEtats; i++)
+			{
+				if(classe1[i] != classe2[i])
+				{
+					identique = 0;
+				}
+			}
+			if (identique == 1)
+			{
+				arret = 1;
+			}
+		}
+	}
+
+
+	if(nextClasse == 2)
+	{
+		construireAFDVierge(minimal,nbClasses1,0);
+		minimal->initial = classe1[automate->initial];
+		for(i = 0; i < automate->nbEtats; i++)
+		{
+			for(j = 0; j < automate->nbEtatsFinaux; j++)
+			{
+				if(automate->final[j] == i)
+				{
+					minimal->nbEtatsFinaux++;
+					minimal->final = realloc(minimal->final, sizeof(int)*minimal->nbEtatsFinaux);
+					minimal->final[nbClasses1-1] = classe1[i];
+				}
+			}
+			for(j = 0; j < 256; j++)
+			{
+				minimal->transition[j][classe1[i]] = transitionClasse[j][i];
+			}
+		}
+	}
+	else
+	{
+		construireAFDVierge(minimal,nbClasses2,0);
+		minimal->initial = classe2[automate->initial];
+		for(i = 0; i < automate->nbEtats; i++)
+		{
+			for(j = 0; j < automate->nbEtatsFinaux; j++)
+			{
+				if(automate->final[j] == i)
+				{
+					minimal->nbEtatsFinaux++;
+					minimal->final = realloc(minimal->final, sizeof(int)*minimal->nbEtatsFinaux);
+					minimal->final[nbClasses2-1] = classe2[i];
+				}
+			}
+			for(j = 0; j < 256; j++)
+			{
+				minimal->transition[j][classe2[i]] = transitionClasse[j][i];
+			}
+		}
+	}
+	for (i = 0; i < 256; i++)
+	{
+		free(transitionClasse[i]);
+	}
+	free(classe1);
+	free(classe2);
+
 }
 
 int est_reconnu(char* mot, int longueurMot, AFD* automate)
@@ -175,8 +375,7 @@ void determiniser(AFND* nonDeter, AFD* deter)
 	{
 		tableEtat[courant][i] = nonDeter->initial[i];
 	}
-
-	while(courant <= nbEtatsDeter)
+	while(courant < nbEtatsDeter)
 	{
 		for (i = 0; i < 256; i++)
 		{
@@ -249,7 +448,6 @@ void determiniser(AFND* nonDeter, AFD* deter)
 		courant++;
 		
 	}
-
 	nbEtatsFinauxDeter = 0;
 	for (i = 0; i < nbEtatsDeter; i++)
 	{
@@ -301,7 +499,6 @@ void determiniser(AFND* nonDeter, AFD* deter)
 	}
 	free(tableEtat);
 	free(compEtat);
-
 }
 
 int est_meme_etat(int compEtat1, int compEtat2, int* tableEtat1, int* tableEtat2)
