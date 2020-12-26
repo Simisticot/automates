@@ -68,52 +68,15 @@ int main(int argc, char const *argv[])
 	AFND mot3;
 	AFND motc;
 	AFND concat_3c;
-	AFD deter_concat_3c;
-	AFD mini_concat_3c;
 
 	construireAFNDLangageUnCar(&mot3,51);
 	construireAFNDLangageUnCar(&motc,99);
 
-	printf("avant\n");
 	concatenationAFND(&mot3,&motc,&concat_3c);
-	printf("après\n");
-	determiniser(&concat_3c,&deter_concat_3c);
-	minimiser(&deter_concat_3c,&mini_concat_3c);
-
-	printf("nombre d'états finaux de motc : %d\n",motc.nbEtatsFinaux);
-	printf("inital motc : %d final motc : %d\n",motc.initial[0],motc.final[0] );
-
-	printf("nombre d'états : %d\n",mini_concat_3c.nbEtats);
-
-
-	printf("etat initial : %d\n",mini_concat_3c.initial);
-
-	printf("nombre d'états finaux : %d\n",mini_concat_3c.nbEtatsFinaux );
-	printf("états finaux : \n");
-	for(int i = 0; i < mini_concat_3c.nbEtatsFinaux; i++){
-		printf("%d\n", mini_concat_3c.final[i]);
-	}
-
-
-	if(est_reconnu("3c",2,&deter_concat_3c))
-	{
-		printf("reconnu\n");
-	}
-	else
-	{
-		printf("non reconnu\n");
-	}
 
 	desallouerAFND(&mot3);
-	printf("après mot3\n");
 	desallouerAFND(&motc);
-	printf("après motc\n");
 	desallouerAFND(&concat_3c);
-	printf("après concat\n");
-	desallouerAFD(&deter_concat_3c);
-	printf("après deter\n");
-	desallouerAFD(&mini_concat_3c);
-	printf("après désallocations\n");
 	return 0;
 }
 
@@ -150,7 +113,6 @@ void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
 			finalInitial++;
 		}
 	}
-	printf("après init finalInitial\n");
 
 	if(finalInitial > 0)
 	{
@@ -163,7 +125,6 @@ void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
 
 	construireAFNDVierge(concatenation, automate1->nbEtats + automate2->nbEtats - automate2->nbEtatsInitiaux, automate1->nbEtatsInitiaux, nbEtatsFinaux);
 	
-	printf("après construction\n");
 
 	//on ajoute les états initiaux de auto1
 	for(i = 0; i < automate1->nbEtatsInitiaux; i++)
@@ -186,9 +147,7 @@ void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
 		}
 		if(!initial)
 		{
-			printf("ajout d'un final de auto2\n");
 			concatenation->final[k] = automate2->final[i] + (automate1->nbEtats - automate2->nbEtatsInitiaux) ;
-			printf("%d est maintenant final dans concat\n",concatenation->final[k]);
 			k++;
 			
 		}
@@ -203,7 +162,6 @@ void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
 			j++;
 		}
 	}
-	printf("après ajout des initiaux et finaux\n");
 
 	//on ajoute toutes les transitions de auto1
 	for(i = 0; i < automate1->nbEtats; i++)
@@ -211,14 +169,16 @@ void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
 		for(j = 0; j < automate1->nbEtats; j++)
 		{
 			concatenation->nbTransitions[i][j] = automate1->nbTransitions[i][j];
-			concatenation->transition[i][j] = malloc(sizeof(int)*concatenation->nbTransitions[i][j]);
+			if(concatenation->nbTransitions[i][j] > 0)
+			{
+				concatenation->transition[i][j] = malloc(sizeof(int)*concatenation->nbTransitions[i][j]);
+			}
 			for(k = 0; k < automate1->nbTransitions[i][j]; k++)
 			{
 				concatenation->transition[i][j][k] = automate1->transition[i][j][k];
 			}
 		}
 	}
-	printf("après ajout des transitions de auto1\n");
 
 	//pour chaque état 1 de auto2
 	for (i = 0; i < automate2->nbEtats; i++)
@@ -266,7 +226,14 @@ void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
 							{
 								//on ajoute la transition k mais de l vers j en décalant du nombre d'états de auto1 et du nombre d'états initiaux de auto2 qu'on a retirés
 								concatenation->nbTransitions[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)]++;
-								concatenation->transition[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] = realloc(concatenation->transition[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)], sizeof(int)*concatenation->nbTransitions[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)]);
+								if(concatenation->nbTransitions[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] == 1)
+								{
+									concatenation->transition[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] = malloc(sizeof(int)*concatenation->nbTransitions[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)]);
+								}
+								else
+								{
+									concatenation->transition[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] = realloc(concatenation->transition[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)], sizeof(int)*concatenation->nbTransitions[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)]);
+								}
 								concatenation->transition[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)][concatenation->nbTransitions[l][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)]-1] = automate2->transition[i][j][k];
 							}
 						}
@@ -324,26 +291,31 @@ void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
 				}
 			}
 		}
-		else //si i n'est pas initial
+		else //si i n'est pas initial 
 		{
 			//pour chaque état j de auto2
 			for (j = 0; j < automate2->nbEtats; j++)
 			{
-				//on ajoute toutes les transitions k de i vers j en décalant du nombre d'états d'auto1 et du nombre d'états innitiaux d'auto2 qu'on a retirés
-				if(concatenation->nbTransitions[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] == 0)
+				//si il existe au moins une transition de i à j dans auto2
+				if(automate2->nbTransitions[i][j] > 0)
 				{
-					concatenation->nbTransitions[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] += automate2->nbTransitions[i][j];
-					concatenation->transition[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] = malloc(sizeof(int)*concatenation->nbTransitions[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)]);
+					//on ajoute toutes les transitions k de i vers j en décalant du nombre d'états d'auto1 et du nombre d'états initiaux d'auto2 qu'on a retirés
+					if(concatenation->nbTransitions[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] == 0)
+					{
+						concatenation->nbTransitions[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] += automate2->nbTransitions[i][j];
+						concatenation->transition[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] = malloc(sizeof(int)*concatenation->nbTransitions[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)]);
+					}
+					else
+					{
+						concatenation->nbTransitions[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] += automate2->nbTransitions[i][j];
+						concatenation->transition[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] = realloc(concatenation->transition[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)], sizeof(int)*concatenation->nbTransitions[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)]);
+					}
+					for(k = 0; k < automate2->nbTransitions[i][j]; k++)
+					{
+						concatenation->transition[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)][k] = automate2->transition[i][j][k];
+					}
 				}
-				else
-				{
-					concatenation->nbTransitions[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] += automate2->nbTransitions[i][j];
-					concatenation->transition[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)] = realloc(concatenation->transition[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)], sizeof(int)*concatenation->nbTransitions[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)]);
-				}
-				for(k = 0; k < automate2->nbTransitions[i][j]; k++)
-				{
-					concatenation->transition[i + (automate1->nbEtats - automate2->nbEtatsInitiaux)][j + (automate1->nbEtats - automate2->nbEtatsInitiaux)][k] = automate2->transition[i][j][k];
-				}
+				
 			}
 		}
 	}
@@ -351,41 +323,78 @@ void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
 
 void minimiser(AFD* automate, AFD* minimal)
 {
+	//compteurs de boucles
 	int i,j,k,l,m;
+
+	//indique si le compteur courant correspond à un état final
 	int final;
+
+	// deux tableaux de classes class1[i] contient la classe ou l'ensemble d'états dans lequel se trouve i
+	// la boucle s'arrête quand le tableau de classes précédent est identique au tableau courant
+	// on en utilise donc deux qu'on rempli à tour de rôle pour préserer l'itération précédente
 	int* classe1;
 	int* classe2;
+
+	//nombre de classes existantes dans chaque tableau, pas utile pour les accès mémoire mais permet de remplir les tableau
+	//permet également de valoriser le nombre d'états du nouvel automate car une classe = un nouvel état
 	int nbClasses1;
 	int nbClasses2;
+
+	//contient pour chaque couple [caractère][état] la classe de l'état vers lequel on transitionne pour le couple donné
+	//permet de raffiner les classes à la fin de chaque itération, deux états ne restent dans la même classe que si ils transitionnent vers la même classe pour tout l'alphabet
 	int* transitionClasse[256];
+
+	//variable temporaire pour stocker l'état destination d'une transition
 	int dest;
+
+	//variable d'arrêt pour la boucle de minimisation
 	int arret;
+
+	//variable contenant 1 ou 2 en fonction du tableau de classes à remplir à l'itération suivante
 	int nextClasse;
+
+	//booléen indiquant si deux états ou classes, ou tableaux de classes sont identiques
 	int identique;
 
+
+	//on commence par remplir le tableau de classes 1 donc le suivant doit être le 2
 	nextClasse = 2;
 
+	//on initialise la variable d'arrêt à 0 pour la boucle de minimisation
 	arret = 0;
 
+	//on alloue une case par état de notre automate pour chaque caractère dans le tableau des transitions
 	for (i = 0; i < 256; i++)
 	{
 		transitionClasse[i] = malloc(sizeof(int)*automate->nbEtats);
 	}
 	
+	//pour chaque tableau de classes on alloue une case par état également (puisqu'on veut stocker une classe par état)
 	classe1 = malloc(sizeof(int)*automate->nbEtats);
 	classe2 = malloc(sizeof(int)*automate->nbEtats);
 
-	nbClasses1 = 2;
-	nbClasses2 = 0;
-
-	for (i = 0; i < automate->nbEtats; i++)
+	//si il n'y a pas d'état final ou si ils le sont tous on a une seule classe et tous les états vont dedans
+	//autrement on a deux classes : une pour les états finaux et une pour les autres
+	if(automate->nbEtatsFinaux == 0 || automate->nbEtatsFinaux == automate->nbEtats)
 	{
-		final = 0;
-		for (j = 0; j < automate->nbEtatsFinaux; j++)
+		nbClasses1 = 1;
+		for (i = 0; i < automate->nbEtats; i++)
 		{
-			if (i == automate->final[j])
+			classe1[i] = 0;
+		}
+	}
+	else
+	{
+		nbClasses1 = 2;
+		for (i = 0; i < automate->nbEtats; i++)
+		{
+			final = 0;
+			for (j = 0; j < automate->nbEtatsFinaux; j++)
 			{
-				final = 1;
+				if (i == automate->final[j])
+				{
+					final = 1;
+				}
 			}
 			if (final == 1)
 			{
@@ -397,98 +406,139 @@ void minimiser(AFD* automate, AFD* minimal)
 			}
 		}
 	}
+	//les classes 2 sont initialisées plus tard
+	nbClasses2 = 0;
 
+	//tant que la condition d'arrêt n'est pas atteinte
 	while(arret == 0)
 	{
+		//si le prochain tableau à remplir est le 1
 		if(nextClasse == 1)
 		{
+			//pour chaque caractère i
 			for (i = 0; i < 256; i++)
 			{
+				//pour chaque état j
 				for (j = 0; j < automate->nbEtats; j++)
 				{
+					//si il n'y a pas de transition par i à partir de j
 					if(automate->transition[i][j] == -1)
 					{
+						//j ne transitionne vers aucune classe par i
 						transitionClasse[i][j] = -1;
 					}
-					else
+					else //si il y a une transition par i à partir de j
 					{
+						//on crée une transition vers la classe de la destination dans transitionClasse
 						transitionClasse[i][j] = classe2[automate->transition[i][j]];
 					}
 				}
 			}
-
+			//on initialise le nombre de classes à 0 car on rempli le tableau depuis rien
 			nbClasses1 = 0;
+			//pour chaque état i
 			for (i = 0; i < automate->nbEtats; i++)
 			{
+				//on initialise l'état de i au nombre d'états du tableau
+				//le plus bas possible étant 0
 				classe1[i] = nbClasses1;
+				//pour chaque état j traité avant i
 				for (j = 0; j < i; j++)
 				{
+					//on initialise le booléen identique à vrai
 					identique = 1;
+					//pour chaque caractère k
 					for (k = 0; k < 256; k++)
 					{
+						//si on ne transitionne pas vers la même classe depuis les états i et j pour le caractère k
 						if(transitionClasse[k][i] != transitionClasse[k][j])
 						{
+							//le booléen identique devient faux pour indiquer que les deux états ne sont pas équivalents au regard de leurs transitions
+							//ils ne peuvent donc pas appartenir à la même classe
 							identique = 0;
 						}
 					}
+					//si les états i et j sont identiques au regard de leurs transitions
 					if(identique == 1)
 					{
+						//on donne la classe de j à i
 						classe1[i] = classe1[j];
 					}
 				}
-				if(classe1[i] = nbClasses1){
+				//si i a toujours la classe égale au nombre de classes qu'on lui a donné au début de l'itération
+				//celà implique qu'on n'a trouvé aucun j équivalent à i du point de vue de ses transitions
+				if(classe1[i] == nbClasses1){
+					//on incrémente juste le nombre de classes ce qui revient à créer une nouvelle classe pour i
 					nbClasses1++;
 				}
 			}
 			nextClasse = 2;
 		}
-		else
+		else // si le prochain tableau à remplir est le 1 on fait le même traitement en inversant les tableaux
 		{
-
+			//pour chaque caractère i
 			for (i = 0; i < 256; i++)
 			{
+				//pour chaque état j
 				for (j = 0; j < automate->nbEtats; j++)
 				{
+					//si il n'y a pas de transition depuis j par i
 					if(automate->transition[i][j] == -1)
 					{
+						//j ne transtionne vers aucune classe par i
 						transitionClasse[i][j] = -1;
 					}
-					else
+					else //si il y a une transtion depuis j par i
 					{
+						//j transitionne vers la classe de la destination de la transition depuis j par i
 						transitionClasse[i][j] = classe1[automate->transition[i][j]];
 					}
 				}
 			}
-
+			//on initialise le nombre de classes à 0 car on remplie le tableau depuis rien
 			nbClasses2 = 0;
+			//pour chaque état i
 			for (i = 0; i < automate->nbEtats; i++)
 			{
+				//on assigne le nombre de classes comme classe à l'état
+				//minimum 0
 				classe2[i] = nbClasses2;
+				//pour chaque état j traité avant i
 				for (j = 0; j < i; j++)
 				{
+					//on initialise le booléen identique à vrai
 					identique = 1;
+					//pour chaque caractère k
 					for (k = 0; k < 256; k++)
 					{
+						//si i et j ne transitionnent pas vers la même classe pour k
 						if(transitionClasse[k][i] != transitionClasse[k][j])
 						{
+							//le booléen passe à faux car i et j ne sont pas identiques au regard de leurs transitions
 							identique = 0;
 						}
 					}
+					//si i et j sont identiques au regard de leurs transition
 					if(identique == 1)
 					{
+						//on donne à i la classe de j
 						classe2[i] = classe2[j];
 					}
 				}
+				//si i a toujours la classe égale au nombre de classes qu'on lui a donné au début de l'itération
+				//celà implique qu'on n'a trouvé aucun j équivalent à i du point de vue de ses transitions
 				if(classe2[i] == nbClasses2){
+					//on incrémente juste le nombre de classes ce qui revient à créer une nouvelle classe pour i
 					nbClasses2++;
 				}
 			}
+			//le prochain tableau à traiter est le 1
 			nextClasse = 1;
 		}
-
+		//ici on vérifie si la condition d'arrêt est remplie
 		if(nbClasses1 != nbClasses2)
 		{
-			arret = 1;
+			arret = 0;
 		}
 		else
 		{
@@ -520,8 +570,7 @@ void minimiser(AFD* automate, AFD* minimal)
 				{
 					minimal->nbEtatsFinaux++;
 					minimal->final = realloc(minimal->final, sizeof(int)*minimal->nbEtatsFinaux);
-					minimal->final[nbClasses1-1] = classe1[i];
-					printf("on assigne %d comme final en nxt2\n",classe1[i] );
+					minimal->final[minimal->nbEtatsFinaux-1] = classe1[i];
 				}
 			}
 			for(j = 0; j < 256; j++)
@@ -534,6 +583,7 @@ void minimiser(AFD* automate, AFD* minimal)
 	{
 		construireAFDVierge(minimal,nbClasses2,0);
 		minimal->initial = classe2[automate->initial];
+		k = 0;
 		for(i = 0; i < automate->nbEtats; i++)
 		{
 			for(j = 0; j < automate->nbEtatsFinaux; j++)
@@ -543,6 +593,7 @@ void minimiser(AFD* automate, AFD* minimal)
 					minimal->nbEtatsFinaux++;
 					minimal->final = realloc(minimal->final, sizeof(int)*minimal->nbEtatsFinaux);
 					minimal->final[minimal->nbEtatsFinaux-1] = classe2[i];
+
 				}
 			}
 			for(j = 0; j < 256; j++)
