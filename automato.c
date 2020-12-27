@@ -23,6 +23,12 @@ typedef struct AFD
 	int* final;	
 } AFD;
 
+//valorise les nombres d'états, états initiaux et états finaux puis alloue les tableaux correspondants.
+void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int nbEtatsFinaux);
+
+//libère la mémoire allouée à un automate fini non déterministe
+void desallouerAFND(AFND* automate);
+
 //construit un automate non déterministe reconnaissant le langage qui contient le seul mot vide
 void construireAFNDMotVide(AFND* automate);
 
@@ -32,17 +38,14 @@ void construireAFNDLangageVide(AFND* automate);
 //construit un automate non déterministe reconnaissant le langage qui contient un seul mot composé du caractère c sans répétition
 void construireAFNDLangageUnCar(AFND* automate, char c);
 
-//valorise les nombres d'états, états initiaux et états finaux puis alloue les tableaux correspondants.
-void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int nbEtatsFinaux);
-
-//libère la mémoire allouée à un automate fini non déterministe
-void desallouerAFND(AFND* automate);
-
 //construit un automate non déterministe reconnaissant l'union des langages des deux automates non déterministes en entrée
 void unionAFND(AFND* automate1, AFND* automate2, AFND* automate_union);
 
-//construit un automate non déterministe reconnaissant la concaténation des langages des deux autimates non déterministes en entrée
+//construit un automate non déterministe reconnaissant la concaténation des langages des deux automates non déterministes en entrée
 void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation);
+
+//construit un automate non déterministe reconnaissant la fermeture itérative de Kleene du langage de l'automate non déterminisate en entrée
+void fermetureIterativeDeKleene(AFND* automate, AFND* fermeIterativement);
 
 //valorise les nombres d'états, états initiaux et états finaux puis alloue le tableau d'états finaux
 void construireAFDVierge(AFD* automate, int nbEtats, int nbEtatsFinaux);
@@ -67,17 +70,149 @@ int main(int argc, char const *argv[])
 
 	AFND mot3;
 	AFND motc;
-	AFND concat_3c;
+	AFND mot3c;
+	AFND etoile3c;
+	AFD deter_etoile3c;
 
 	construireAFNDLangageUnCar(&mot3,51);
 	construireAFNDLangageUnCar(&motc,99);
 
-	concatenationAFND(&mot3,&motc,&concat_3c);
+	concatenationAFND(&mot3,&motc,&mot3c);
+
+	fermetureIterativeDeKleene(&mot3c,&etoile3c);
+	determiniser(&etoile3c,&deter_etoile3c);
+	printf("l'initial a %d états\n",mot3c.nbEtats);
+
+	printf("l'etoile a : %d états\n",etoile3c.nbEtats);
+
+	printf("nombre d'états deter : %d\n",deter_etoile3c.nbEtats);
+	printf("état initial : %d\n",deter_etoile3c.initial);
+	printf("nombre d'états accepteurs : %d\n",deter_etoile3c.nbEtatsFinaux);
+	printf("états accepteurs :\n");
+	for(int i = 0; i < deter_etoile3c.nbEtatsFinaux; i++)
+	{
+		printf("%d\n",deter_etoile3c.final[i]);
+	}
+
+	if(est_reconnu("3c3c",4,&deter_etoile3c)){
+		printf("reconnu\n");
+	}
+	else
+	{
+		printf("non reconnu\n");
+	}
 
 	desallouerAFND(&mot3);
 	desallouerAFND(&motc);
-	desallouerAFND(&concat_3c);
+	desallouerAFND(&mot3c);
+	desallouerAFND(&etoile3c);
+	desallouerAFD(&deter_etoile3c);
+
 	return 0;
+}
+
+void fermetureIterativeDeKleene(AFND* automate, AFND* fermeIterativement)
+{
+	int i,j,k,l,m;
+	int initialFinal;
+	int initial;
+	int final;
+
+	initialFinal = 0;
+
+	for (i = 0; i < automate->nbEtatsInitiaux; i++)
+	{
+		for (j = 0; j < automate->nbEtatsFinaux; j++)
+		{
+			if(automate->initial[i] == automate->final[j])
+			{
+				initialFinal++;
+			}
+		}
+	}
+	construireAFNDVierge(fermeIterativement, automate->nbEtats, automate->nbEtatsInitiaux, automate->nbEtatsFinaux + (automate->nbEtatsInitiaux - initialFinal));
+	
+	k = 0;
+	for (i = 0; i < automate->nbEtatsFinaux; i++)
+	{
+		fermeIterativement->final[k] = automate->final[i];
+		k++;
+	}
+
+	for (i = 0; i < automate->nbEtatsInitiaux; i++)
+	{
+		fermeIterativement->initial[i] = automate->initial[i];
+		final = 0;
+		for (j = 0; j < automate->nbEtatsFinaux; j++)
+		{
+			if(automate->final[j] == automate->initial[i])
+			{
+				final = 1;
+			}
+		}
+		if(!final)
+		{
+			fermeIterativement->final[k] = automate->initial[i];
+			k++;
+		}
+	}
+
+	for(i = 0; i < automate->nbEtats; i++)
+	{
+		for(j = 0; j < automate->nbEtats; j++)
+		{
+			if(automate->nbTransitions[i][j] > 0)
+			{
+				fermeIterativement->nbTransitions[i][j] = automate->nbTransitions[i][j];
+				fermeIterativement->transition[i][j] = malloc(sizeof(int)*fermeIterativement->nbTransitions[i][j]);
+				for(k = 0; k < automate->nbTransitions[i][j]; k++)
+				{
+					fermeIterativement->transition[i][j][k] = automate->transition[i][j][k];
+				}
+			}
+		}
+	}
+
+	//pour chaque état initial initial[i] de auto
+	for(i = 0; i < automate->nbEtatsInitiaux; i++)
+	{
+		//pour chaque état j de auto
+		for(j = 0; j < automate->nbEtats; j++)
+		{
+			//si il y a une transition de initial[i] à j
+			if(automate->nbTransitions[automate->initial[i]][j] > 0)
+			{
+				//pour chaque état final final[k] de auto
+				for(k = 0; k < automate->nbEtatsFinaux; k++)
+				{
+					//m = nombre de transition actuel de final[k] à j
+					m = fermeIterativement->nbTransitions[automate->final[k]][j];
+					//on ajoute le nombre de transitions de initial[i] à j dans auto au nombre de transitions de final[k] à j dans fermé
+					fermeIterativement->nbTransitions[automate->final[k]][j] += automate->nbTransitions[automate->initial[i]][j];
+					//si il n'y avait pas de transitions on alloue la mémoire, si il y en avait on la réalloue
+					if(m == 0)
+					{
+						fermeIterativement->transition[automate->final[k]][j] = malloc(sizeof(int)*fermeIterativement->nbTransitions[automate->final[k]][j]);
+					}
+					else
+					{
+						fermeIterativement->transition[automate->final[k]][j] = realloc(fermeIterativement->transition[automate->final[k]][j], sizeof(int)*fermeIterativement->nbTransitions[automate->final[k]][j]);
+					}
+					//pour chaque transition l de initial[i] à j dans auto
+					for (l = 0; l < automate->nbTransitions[automate->initial[i]][j]; l++)
+					{
+						//on ajoute une transition identique au départ de final[k] dans fermé
+						fermeIterativement->transition[automate->final[k]][j][m] = automate->transition[automate->initial[i]][j][l];
+						m++;
+					}
+				}
+			}
+		}
+	}
+
+
+
+
 }
 
 void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
@@ -642,7 +777,7 @@ int est_reconnu(char* mot, int longueurMot, AFD* automate)
 
 void determiniser(AFND* nonDeter, AFD* deter)
 {
-	int i,j,k,l,m;
+	int i,j,k,l,m,n;
 	int* transitionDeter[256];
 	int nbEtatsDeter;
 	int* finalDeter;
@@ -688,18 +823,28 @@ void determiniser(AFND* nonDeter, AFD* deter)
 						{
 							if(nonDeter->transition[tableEtat[courant][j]][l][m] == i)
 							{
-								compNouvEtat++;
-								if(compNouvEtat == 1)
+								duplicat = 0;
+								for(n = 0; n < compNouvEtat; n++)
 								{
-									tableNouvEtat = malloc(sizeof(int));
+									if(l==tableNouvEtat[n])
+									{
+										duplicat=1;
+									}
 								}
-								else
+								if(!duplicat)
 								{
-									tableNouvEtat = realloc(tableNouvEtat, sizeof(int)*compNouvEtat);
+									compNouvEtat++;
+									if(compNouvEtat == 1)
+									{
+										tableNouvEtat = malloc(sizeof(int));
+									}
+									else
+									{
+										tableNouvEtat = realloc(tableNouvEtat, sizeof(int)*compNouvEtat);
+									}
+
+									tableNouvEtat[compNouvEtat-1] = l;
 								}
-
-								tableNouvEtat[compNouvEtat-1] = l;
-
 							}
 						}
 					}
