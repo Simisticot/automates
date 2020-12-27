@@ -4,22 +4,46 @@
 //structure représentant un automate fini non déterministe
 typedef struct AFND
 {
+	//nombre d'états de notre automate
 	int nbEtats;
+
+	//nombre de transitions entre chaque couple départ+arrivée
 	int** nbTransitions;
+
+	//pour chaque couple départ+arrivée contient un tableau des transitions entre départ et arrivée
+	//chaque case contient le caractère déclenchant la transition
 	int*** transition;
+
+	//nombre d'états initiaux de notre automate
 	int nbEtatsInitiaux;
+
+	//tableau contenant les états initiaux de notre automate
 	int* initial;
+
+	//nombre d'états finaux ou accepteurs de notre automate
 	int nbEtatsFinaux;
+
+	//tableau contenant les états finaux ou accepteurs de notre automate
 	int* final;
 } AFND;
 
 //structure représentant un automate fini déterministe
 typedef struct AFD
 {
+	//nombre d'états de notre automate
 	int nbEtats;
+
+	//pour chaque couple caractère+départ contient l'état d'arrivée de la transition pour le caractère donné pour l'état de départ donné
+	//contient -1 si il n'existe pas de transition par le caractère donné pour l'état de départ donné
 	int* transition[256];
+
+	//état initial de notre automate
 	int initial;
+
+	//nombre d'états finaux ou accepteurs de notre automate
 	int nbEtatsFinaux;
+
+	//tableau contenant les états finaux ou accepteurs de notre automate
 	int* final;	
 } AFD;
 
@@ -57,6 +81,7 @@ void desallouerAFD(AFD* automate);
 void determiniser(AFND* nonDeter, AFD* deter);
 
 //retourne vrai si les deux états ont le même nombre de composantes et si chaque composante de l'état 1 est présente dans l'état 2
+//utilisé dans la fonction déterminiser
 int est_meme_etat(int compEtat1, int compEtat2, int* tableEtat1, int* tableEtat2);
 
 //retourne vrai si le mot fourni est reconnu par l'automate fourni, retourne faux autrement
@@ -70,161 +95,288 @@ int main(int argc, char const *argv[])
 
 	AFND mot3;
 	AFND motc;
+	AFND motd;
 	AFND mot3c;
-	AFND etoile3c;
-	AFD deter_etoile3c;
+	AFND mot3c_d;
+	AFND etoile3c_d;
+	AFD deter_etoile3c_d;
+	AFD mini_etoile3c_d;
 
 	construireAFNDLangageUnCar(&mot3,51);
 	construireAFNDLangageUnCar(&motc,99);
+	construireAFNDLangageUnCar(&motd,100);
 
 	concatenationAFND(&mot3,&motc,&mot3c);
 
-	fermetureIterativeDeKleene(&mot3c,&etoile3c);
-	determiniser(&etoile3c,&deter_etoile3c);
-	printf("l'initial a %d états\n",mot3c.nbEtats);
+	unionAFND(&mot3c,&motd,&mot3c_d);
 
-	printf("l'etoile a : %d états\n",etoile3c.nbEtats);
+	fermetureIterativeDeKleene(&mot3c_d,&etoile3c_d);
+	determiniser(&etoile3c_d,&deter_etoile3c_d);
+	minimiser(&deter_etoile3c_d,&mini_etoile3c_d);
 
-	printf("nombre d'états deter : %d\n",deter_etoile3c.nbEtats);
-	printf("état initial : %d\n",deter_etoile3c.initial);
-	printf("nombre d'états accepteurs : %d\n",deter_etoile3c.nbEtatsFinaux);
-	printf("états accepteurs :\n");
-	for(int i = 0; i < deter_etoile3c.nbEtatsFinaux; i++)
+	if(est_reconnu("d3cdd3c3c",9,&mini_etoile3c_d))
 	{
-		printf("%d\n",deter_etoile3c.final[i]);
-	}
-
-	if(est_reconnu("3c3c",4,&deter_etoile3c)){
-		printf("reconnu\n");
+		printf("premier mot reconnu\n");
 	}
 	else
 	{
-		printf("non reconnu\n");
+		printf(" premier mot non reconnu\n");
+	}
+
+	if(est_reconnu("d3cdd3ch3c",10,&mini_etoile3c_d))
+	{
+		printf("second mot reconnu\n");
+	}
+	else
+	{
+		printf("second mot non reconnu\n");
 	}
 
 	desallouerAFND(&mot3);
 	desallouerAFND(&motc);
+	desallouerAFND(&motd);
 	desallouerAFND(&mot3c);
-	desallouerAFND(&etoile3c);
-	desallouerAFD(&deter_etoile3c);
+	desallouerAFND(&mot3c_d);
+	desallouerAFND(&etoile3c_d);
+	desallouerAFD(&deter_etoile3c_d);
+	desallouerAFD(&mini_etoile3c_d);
 
 	return 0;
 }
 
-void fermetureIterativeDeKleene(AFND* automate, AFND* fermeIterativement)
+void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int nbEtatsFinaux)
 {
-	int i,j,k,l,m;
-	int initialFinal;
-	int initial;
-	int final;
+	//on initialise le nombre d'états
+	automate->nbEtats = nbEtats;
+	//on alloue la première dimension du tableau de transitions
+	automate->transition = malloc(sizeof(int**)*automate->nbEtats);
 
-	initialFinal = 0;
-
-	for (i = 0; i < automate->nbEtatsInitiaux; i++)
+	//on alloue la seconde dimension du tableau de transitions
+	for (int i = 0; i < automate->nbEtats; i++)
 	{
-		for (j = 0; j < automate->nbEtatsFinaux; j++)
-		{
-			if(automate->initial[i] == automate->final[j])
-			{
-				initialFinal++;
-			}
-		}
+		automate->transition[i] = malloc(sizeof(int*)*automate->nbEtats);
 	}
-	construireAFNDVierge(fermeIterativement, automate->nbEtats, automate->nbEtatsInitiaux, automate->nbEtatsFinaux + (automate->nbEtatsInitiaux - initialFinal));
+
+	//on alloue la première dimension du tableau contenant le nombre de transition pour chaque paire
+	automate->nbTransitions = malloc(sizeof(int*)*automate->nbEtats);
 	
-	k = 0;
-	for (i = 0; i < automate->nbEtatsFinaux; i++)
+	//on alloue la seconde dimension et on initialise le nombre de transitions entre chaque paire à 0
+	for (int i = 0; i < automate->nbEtats; i++)
 	{
-		fermeIterativement->final[k] = automate->final[i];
-		k++;
+		automate->nbTransitions[i] = malloc(sizeof(int*)*automate->nbEtats);
+		for (int j = 0; j < automate->nbEtats; j++)
+		{
+			automate->nbTransitions[i][j] = 0;
+		}
 	}
 
-	for (i = 0; i < automate->nbEtatsInitiaux; i++)
-	{
-		fermeIterativement->initial[i] = automate->initial[i];
-		final = 0;
-		for (j = 0; j < automate->nbEtatsFinaux; j++)
-		{
-			if(automate->final[j] == automate->initial[i])
-			{
-				final = 1;
+	//on initialise le nombre d'états initiaux et on alloue le tableau à la taille donnée
+	automate->nbEtatsInitiaux = nbEtatsInitiaux;
+	automate->initial = malloc(sizeof(int)*automate->nbEtatsInitiaux);
+
+	//on initialise le nombre d'états finaux et on alloue le tableau à la taille donnée
+	automate->nbEtatsFinaux = nbEtatsFinaux;
+	automate->final = malloc(sizeof(int)*automate->nbEtatsFinaux);
+}
+
+void desallouerAFND(AFND* automate)
+{
+	int i,j,k;
+
+	//pour chaque paire d'états i et j
+	for(i = 0; i < automate->nbEtats; i++){
+		for(j = 0; j < automate->nbEtats; j++){
+			//si il y a des transitions de i à j 
+			if(automate->nbTransitions[i][j] > 0){
+				//on libère la mémoire dédiée à ces transitions
+				free(automate->transition[i][j]);
 			}
 		}
-		if(!final)
+		//on libère la mémoire dédié aux secondes dimensions des tableaux de transitions et nombres de transitions
+		free(automate->nbTransitions[i]);
+		free(automate->transition[i]);
+	}
+
+	//ainsi que la première dimension
+	free(automate->nbTransitions);
+	free(automate->transition);
+	//on libère également les tableaux d'états initiaux et finaux
+	free(automate->initial);
+	free(automate->final);
+}
+
+void construireAFNDMotVide(AFND* automate)
+{
+	//on constuit notre AFND en connaissant déjà le nombre d'états nécessaires
+	construireAFNDVierge(automate, 2, 1, 1);
+
+	//0 est initial et final
+	automate->initial[0] = 0;
+	automate->final[0] = 0;
+
+	//256 transitions de 0 à 1 car on transitionne vers 1 pour tout l'alphabet
+	automate->nbTransitions[0][1] = 256;
+
+	//on alloue le tableau des transitions
+	automate->transition[0][1] = malloc(sizeof(int)*automate->nbTransitions[0][1]);
+
+	//on ajoute une transition de 0 à 1 pour chaque caractère de l'alphabet
+	for (int i = 0; i < automate->nbTransitions[0][1] ; i++)
+	{
+		automate->transition[0][1][i] = i;
+	}
+}
+
+void construireAFNDLangageVide(AFND* automate)
+{
+	//on construit un automate à 1 état initial mais pas accepteur
+	construireAFNDVierge(automate, 1, 1, 0);
+
+	//0 est initial
+	automate->initial[0] = 0;
+}
+
+void construireAFNDLangageUnCar(AFND* automate, char c)
+{
+	int i,j;
+
+	//remplissage des valeurs triviales
+	construireAFNDVierge(automate, 3, 1, 1);
+
+	//état initial
+	automate->initial[0] = 0;
+
+	//état final
+	automate->final[0] = 1;
+	
+	//nombre de transitions par couple d'états
+	//on a une transition de 0 à 1 (par c), 255 de 0 à 2 (par tous les caractères ASCII sauf c) et 256 transitions de 1 à 2 (par tous les caractères ASCII)
+	automate->nbTransitions[0][0] = 0;
+	automate->nbTransitions[0][1] = 1;
+	automate->nbTransitions[0][2] = 255;
+
+	automate->nbTransitions[1][0] = 0;
+	automate->nbTransitions[1][1] = 0;
+	automate->nbTransitions[1][2] = 256;
+
+	automate->nbTransitions[2][0] = 0;
+	automate->nbTransitions[2][1] = 0;
+	automate->nbTransitions[2][2] = 0;
+
+	//allocation des tableaux de transitions là où il en existe
+	automate->transition[0][1] = malloc(sizeof(int*)*automate->nbTransitions[0][1]);
+	automate->transition[0][2] = malloc(sizeof(int*)*automate->nbTransitions[0][2]);
+	automate->transition[1][2] = malloc(sizeof(int*)*automate->nbTransitions[1][2]);
+	
+
+	//la transition de 0 à 1 se fait par c, on met donc c dans la seule case de transition[0][1][0]
+	automate->transition[0][1][0] = c;
+
+	//on met tous les caractères ASCII sauf dans les transitions de 0 vers 2 
+	j = 0;
+	for (i = 0; i < automate->nbTransitions[0][2]; i++)
+	{
+		if (i != c)
 		{
-			fermeIterativement->final[k] = automate->initial[i];
-			k++;
+			automate->transition[0][2][j] = i;
+			j++;
 		}
 	}
 
-	for(i = 0; i < automate->nbEtats; i++)
+	//on met un caractère ASCII différent dans chaque case de transition[1][2] jusqu'à ce que tous les caractères ASCII y soient
+	for (i = 0; i < automate->nbTransitions[1][2]; i++)
 	{
-		for(j = 0; j < automate->nbEtats; j++)
+		//le fait que la case i contiennet i n'est pas significatif
+		//il importe seulement que le tableau de 256 cases contienne les 256 caractères peu importe leur ordre
+		automate->transition[1][2][i] = i;
+	}
+
+}
+
+void unionAFND(AFND* automate1, AFND* automate2, AFND* automate_union)
+{
+	int i,j,k;
+	construireAFNDVierge(automate_union, automate1->nbEtats + automate2->nbEtats, automate1->nbEtatsInitiaux + automate2->nbEtatsInitiaux, automate1->nbEtatsFinaux + automate2->nbEtatsFinaux);
+
+	//ajout des états initiaux des automates 1 et 2, les uns à la suite des autres
+	for (i = 0; i < automate_union->nbEtatsInitiaux; i++)
+	{
+		automate_union->initial[i] = automate1->initial[i];
+	}
+
+	for(i = automate1->nbEtatsInitiaux; i <automate1->nbEtatsInitiaux + automate2->nbEtatsInitiaux; i++)
+	{
+		automate_union->initial[i] = automate2->initial[i-automate1->nbEtatsInitiaux] + automate1->nbEtats;
+	}
+
+
+	//ajout des états finaux des automates 1 et 2, les uns à la suite des autres
+	for (i = 0; i < automate_union->nbEtatsFinaux; i++)
+	{
+		automate_union->final[i] = automate1->final[i];
+	}
+
+	for(i = automate1->nbEtatsFinaux; i <automate1->nbEtatsFinaux + automate2->nbEtatsFinaux; i++)
+	{
+		automate_union->final[i] = automate2->final[i-automate1->nbEtatsFinaux] + automate1->nbEtats;
+	}
+
+	//ajout des transitions de l'automate 1
+	for (i = 0; i < automate1->nbEtats; i++)
+	{
+		for (j = 0; j < automate1->nbEtats; j++)
 		{
-			if(automate->nbTransitions[i][j] > 0)
+			automate_union->nbTransitions[i][j] = automate1->nbTransitions[i][j];
+			if(automate_union->nbTransitions[i][j] > 0)
 			{
-				fermeIterativement->nbTransitions[i][j] = automate->nbTransitions[i][j];
-				fermeIterativement->transition[i][j] = malloc(sizeof(int)*fermeIterativement->nbTransitions[i][j]);
-				for(k = 0; k < automate->nbTransitions[i][j]; k++)
-				{
-					fermeIterativement->transition[i][j][k] = automate->transition[i][j][k];
-				}
+				automate_union->transition[i][j] = malloc(sizeof(int)*automate_union->nbTransitions[i][j]);
+			}
+
+			for (k = 0; k < automate_union->nbTransitions[i][j]; k++)
+			{
+				automate_union->transition[i][j][k] = automate1->transition[i][j][k];
 			}
 		}
 	}
 
-	//pour chaque état initial initial[i] de auto
-	for(i = 0; i < automate->nbEtatsInitiaux; i++)
+	//ajout des transitions de l'automate 2
+	for (i = automate1->nbEtats; i < automate1->nbEtats + automate2->nbEtats; i++)
 	{
-		//pour chaque état j de auto
-		for(j = 0; j < automate->nbEtats; j++)
+		for (j = automate1->nbEtats; j < automate1->nbEtats + automate2->nbEtats; j++)
 		{
-			//si il y a une transition de initial[i] à j
-			if(automate->nbTransitions[automate->initial[i]][j] > 0)
+			automate_union->nbTransitions[i][j] = automate2->nbTransitions[i - automate1->nbEtats][j - automate1->nbEtats];
+			if(automate_union->nbTransitions[i][j] > 0)
 			{
-				//pour chaque état final final[k] de auto
-				for(k = 0; k < automate->nbEtatsFinaux; k++)
-				{
-					//m = nombre de transition actuel de final[k] à j
-					m = fermeIterativement->nbTransitions[automate->final[k]][j];
-					//on ajoute le nombre de transitions de initial[i] à j dans auto au nombre de transitions de final[k] à j dans fermé
-					fermeIterativement->nbTransitions[automate->final[k]][j] += automate->nbTransitions[automate->initial[i]][j];
-					//si il n'y avait pas de transitions on alloue la mémoire, si il y en avait on la réalloue
-					if(m == 0)
-					{
-						fermeIterativement->transition[automate->final[k]][j] = malloc(sizeof(int)*fermeIterativement->nbTransitions[automate->final[k]][j]);
-					}
-					else
-					{
-						fermeIterativement->transition[automate->final[k]][j] = realloc(fermeIterativement->transition[automate->final[k]][j], sizeof(int)*fermeIterativement->nbTransitions[automate->final[k]][j]);
-					}
-					//pour chaque transition l de initial[i] à j dans auto
-					for (l = 0; l < automate->nbTransitions[automate->initial[i]][j]; l++)
-					{
-						//on ajoute une transition identique au départ de final[k] dans fermé
-						fermeIterativement->transition[automate->final[k]][j][m] = automate->transition[automate->initial[i]][j][l];
-						m++;
-					}
-				}
+				automate_union->transition[i][j] = malloc(sizeof(int)*automate_union->nbTransitions[i][j]);
+			}
+
+			for (k = 0; k < automate_union->nbTransitions[i][j]; k++)
+			{
+				automate_union->transition[i][j][k] = automate2->transition[i - automate1->nbEtats][j - automate1->nbEtats][k];
 			}
 		}
 	}
-
-
-
-
 }
 
 void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
 {
+	//booléens utilisés pour vérifier si un état est initial ou final
 	int initial;
 	int final;
-	int finalInitial;
-	int nbEtatsFinaux;
-	int i,j,k,l,m,n,o,p,q;
 
+	//compteur indiquant le nombre d'états à la fois finaux et initiaux
+	int finalInitial;
+
+	//nombre d'états finaux dans le nouvel automate
+	int nbEtatsFinaux;
+
+	//compteurs de boucle
+	int i,j,k,l,m,n,o;
+
+	//on initialise le compteur à 0
 	finalInitial = 0;
 
+	//on compte le nombre d'états à la fois initiaux et finaux dans auto2
 	for(i = 0; i < automate2->nbEtats; i++){
 		final = 0;
 		initial = 0;
@@ -249,6 +401,8 @@ void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
 		}
 	}
 
+	//le nombre d'états finaux du nouvel est le nombre d'états finaux d'auto2 si il n'y a pas d'état initial et final dans auto2
+	//sinon c'est le nombre d'états finaux de auto1 et auto2 moins le nombre d'états initiaux et finaux d'auto2
 	if(finalInitial > 0)
 	{
 		nbEtatsFinaux = automate1->nbEtatsFinaux + automate2->nbEtatsFinaux - finalInitial;
@@ -456,6 +610,462 @@ void concatenationAFND(AFND* automate1, AFND* automate2, AFND* concatenation)
 	}
 }
 
+void fermetureIterativeDeKleene(AFND* automate, AFND* fermeIterativement)
+{
+	//compteurs de boucle
+	int i,j,k,l,m;
+
+	//compteur d'états à la fois initiaux et finaux
+	int initialFinal;
+
+	//booléens utilisés pour vérifier si un état est initial ou final
+	int initial;
+	int final;
+
+	initialFinal = 0;
+
+	//on compte le nombre d'états initiaux et finaux
+	for (i = 0; i < automate->nbEtatsInitiaux; i++)
+	{
+		for (j = 0; j < automate->nbEtatsFinaux; j++)
+		{
+			if(automate->initial[i] == automate->final[j])
+			{
+				initialFinal++;
+			}
+		}
+	}
+
+	//on construit un AFND du même nombre d'états et d'états initiaux, le nombre d'états finaux et le nombre de l'automate initial plus les états initiaux qui ne sont pas finaux dans l'automate initial
+	construireAFNDVierge(fermeIterativement, automate->nbEtats, automate->nbEtatsInitiaux, automate->nbEtatsFinaux + (automate->nbEtatsInitiaux - initialFinal));
+	
+	//k sert de curseur pour le tableau des finaux
+	k = 0;
+	//on ajoute tous les états finaux d'auto
+	for (i = 0; i < automate->nbEtatsFinaux; i++)
+	{
+		fermeIterativement->final[k] = automate->final[i];
+		k++;
+	}
+
+	//on ajoute tous les états initiaux de auto qui ne sont pas finaux dans auto
+	//car ils ont été ajoutés dans le for précédent
+	for (i = 0; i < automate->nbEtatsInitiaux; i++)
+	{
+		fermeIterativement->initial[i] = automate->initial[i];
+		final = 0;
+		for (j = 0; j < automate->nbEtatsFinaux; j++)
+		{
+			if(automate->final[j] == automate->initial[i])
+			{
+				final = 1;
+			}
+		}
+		if(!final)
+		{
+			fermeIterativement->final[k] = automate->initial[i];
+			k++;
+		}
+	}
+
+	//on ajoute toutes les transitions de auto 
+	for(i = 0; i < automate->nbEtats; i++)
+	{
+		for(j = 0; j < automate->nbEtats; j++)
+		{
+			if(automate->nbTransitions[i][j] > 0)
+			{
+				fermeIterativement->nbTransitions[i][j] = automate->nbTransitions[i][j];
+				fermeIterativement->transition[i][j] = malloc(sizeof(int)*fermeIterativement->nbTransitions[i][j]);
+				for(k = 0; k < automate->nbTransitions[i][j]; k++)
+				{
+					fermeIterativement->transition[i][j][k] = automate->transition[i][j][k];
+				}
+			}
+		}
+	}
+
+	//pour chaque état initial initial[i] de auto
+	for(i = 0; i < automate->nbEtatsInitiaux; i++)
+	{
+		//pour chaque état j de auto
+		for(j = 0; j < automate->nbEtats; j++)
+		{
+			//si il y a une transition de initial[i] à j
+			if(automate->nbTransitions[automate->initial[i]][j] > 0)
+			{
+				//pour chaque état final final[k] de auto
+				for(k = 0; k < automate->nbEtatsFinaux; k++)
+				{
+					//m = nombre de transition actuel de final[k] à j
+					m = fermeIterativement->nbTransitions[automate->final[k]][j];
+					//on ajoute le nombre de transitions de initial[i] à j dans auto au nombre de transitions de final[k] à j dans fermé
+					fermeIterativement->nbTransitions[automate->final[k]][j] += automate->nbTransitions[automate->initial[i]][j];
+					//si il n'y avait pas de transitions on alloue la mémoire, si il y en avait on la réalloue
+					if(m == 0)
+					{
+						fermeIterativement->transition[automate->final[k]][j] = malloc(sizeof(int)*fermeIterativement->nbTransitions[automate->final[k]][j]);
+					}
+					else
+					{
+						fermeIterativement->transition[automate->final[k]][j] = realloc(fermeIterativement->transition[automate->final[k]][j], sizeof(int)*fermeIterativement->nbTransitions[automate->final[k]][j]);
+					}
+					//pour chaque transition l de initial[i] à j dans auto
+					for (l = 0; l < automate->nbTransitions[automate->initial[i]][j]; l++)
+					{
+						//on ajoute une transition identique au départ de final[k] dans fermé
+						fermeIterativement->transition[automate->final[k]][j][m] = automate->transition[automate->initial[i]][j][l];
+						m++;
+					}
+				}
+			}
+		}
+	}
+}
+
+void construireAFDVierge(AFD* automate, int nbEtats, int nbEtatsFinaux)
+{
+	//on initialise nombre d'états et ombre d'états finaux
+	automate->nbEtats = nbEtats;
+	automate->nbEtatsFinaux = nbEtatsFinaux;
+
+	//on initialise le tableau de transitions à -1 pour tout couple départ+caractère et on alloue nbEtats cases pour chaque caractère
+	for (int i = 0; i < 256; i++)
+	{
+		automate->transition[i] = malloc(sizeof(int)*automate->nbEtats);
+		for (int j = 0; j < automate->nbEtats; j++)
+		{
+			automate->transition[i][j] = -1;
+		}
+	}
+
+	//on alloue une case pour chaque état final
+	automate->final = malloc(sizeof(int)*automate->nbEtatsFinaux);
+
+}
+
+void desallouerAFD(AFD* automate)
+{
+	//on libère la deuxièmle dimension du tableau de transitions
+	for (int i = 0; i < 256; i++)
+	{
+		free(automate->transition[i]);
+	}
+	//on libère le tableau d'états finaux
+	free(automate->final);
+}
+
+void determiniser(AFND* nonDeter, AFD* deter)
+{
+	//compteurs de boucle
+	int i,j,k,l,m,n;
+
+	//tableau des transitions pour la version déterministe
+	int* transitionDeter[256];
+
+	//nombre d'états de la version déterministe
+	int nbEtatsDeter;
+
+	//tableaux des états finaux de la version déterministe
+	int* finalDeter;
+
+	//nombre d'états finaux de la version déterministe
+	int nbEtatsFinauxDeter;
+
+	//état initial de la version déterministe
+	int initialDeter;
+
+	//table contenant les états composant le nouvel état
+	int* tableNouvEtat;
+
+	//nombre d'états composant le nouvel état
+	int compNouvEtat;
+
+	//table des états de la version déterministe
+	int** tableEtat;
+
+	//nombre d'états composant un état de la version déterministe
+	int* compEtat;
+
+	//état courant
+	int courant;
+
+	//booléen permettant de vérifier si un élément est déjà dans un ensemble auquel on veut l'ajouter
+	int duplicat;
+
+	//booléen indiquant si un état final a déjà été ajouté à la version déterministe
+	int etatFinalAjoute;
+	
+	//on initialise l'état courant à 0
+	courant = 0;
+
+	//on initialise le nombre d'états de la version déterministe à 1
+	nbEtatsDeter = 1;
+
+	//on alloue une case pour le tableau nombre de composants
+	compEtat = malloc(sizeof(int));
+
+	//le premier état est l'état initial composé de tous les états initiaux de la version non déterministe
+	compEtat[courant] = nonDeter->nbEtatsInitiaux;
+	tableEtat = malloc(sizeof(int*));
+	tableEtat[courant] = malloc(sizeof(int)*compEtat[courant]);
+
+	//on initialise toutes les transitions vers l'état 0 à -1
+	for (i = 0; i < 256; i++){
+		transitionDeter[i] = malloc(sizeof(int));
+		transitionDeter[i][0] = -1;
+	}
+
+	//on ajoute tous les états initiaux aux composants de l'états courant
+	for (i = 0; i < compEtat[courant]; i++)
+	{
+		tableEtat[courant][i] = nonDeter->initial[i];
+	}
+
+	//tant qu'il reste des états de la version déterministe à traiter
+	while(courant < nbEtatsDeter)
+	{
+		//pour chaque caractère i
+		for (i = 0; i < 256; i++)
+		{
+			//on initialise le nombre de composant d'un potentiel nouvel état à 0
+			compNouvEtat = 0;
+
+			//pour chaque composant j de l'état courant
+			for (j = 0; j < compEtat[courant]; j++)
+			{
+					//pour chaque état l de la version non déterministe
+					for (l = 0; l < nonDeter->nbEtats; l++)
+					{
+						//pour chaque transition m entre le composant j et l'état l
+						for (m = 0; m < nonDeter->nbTransitions[tableEtat[courant][j]][l]; m++)
+						{
+							//si cette transition se fait pour le caractère i
+							if(nonDeter->transition[tableEtat[courant][j]][l][m] == i)
+							{
+								//on initialise le booléen à 0
+								duplicat = 0;
+
+								//pour chaque composant n de notre nouvel état
+								for(n = 0; n < compNouvEtat; n++)
+								{
+									//si l = n on passe le booléen à vrai
+									if(l==tableNouvEtat[n])
+									{
+										duplicat=1;
+									}
+								}
+								//si notre composant n'est pas encore dans le nouvel état on l'y ajoute
+								if(!duplicat)
+								{
+									compNouvEtat++;
+									if(compNouvEtat == 1)
+									{
+										tableNouvEtat = malloc(sizeof(int));
+									}
+									else
+									{
+										tableNouvEtat = realloc(tableNouvEtat, sizeof(int)*compNouvEtat);
+									}
+									tableNouvEtat[compNouvEtat-1] = l;
+								}
+							}
+						}
+					}
+			}
+			//si notre potentiel nouvel état a au moins un composant
+			if(compNouvEtat > 0)
+			{
+				//on vérifie si notre potentiel nouvel état fait déjà partie des états découverts
+				duplicat = 0;
+				for (j = 0; j < nbEtatsDeter; j++)
+				{
+					if(est_meme_etat(compNouvEtat,compEtat[j],tableNouvEtat,tableEtat[j]))
+					{
+						duplicat = 1;
+						transitionDeter[i][courant] = j;
+					}
+				}
+				//sinon on l'ajoute aux états de la version déterministe à traiter
+				if(duplicat==0)
+				{
+					nbEtatsDeter++;
+					
+					compEtat = realloc(compEtat, sizeof(int)*nbEtatsDeter);
+					tableEtat = realloc(tableEtat, sizeof(int*)*nbEtatsDeter);
+
+					compEtat[nbEtatsDeter-1] = compNouvEtat;
+
+					tableEtat[nbEtatsDeter-1] = malloc(sizeof(int)*compNouvEtat);
+					
+					for (j = 0; j < compNouvEtat; j++)
+					{
+						tableEtat[nbEtatsDeter-1][j] = tableNouvEtat[j];
+					}
+
+					for (j = 0; j < 256; j++)
+					{
+						transitionDeter[j] = realloc(transitionDeter[j], sizeof(int)*nbEtatsDeter);
+						transitionDeter[j][nbEtatsDeter-1] = -1;
+					}
+					transitionDeter[i][courant] = nbEtatsDeter-1;
+				}
+				
+			}
+			//si de la mémoire a été allouée au potentiel nouvel état on la libère pour l'itération suivante
+			if(compNouvEtat > 0)
+			{
+				free(tableNouvEtat);
+			}
+		}
+		//on incrémente l'état courant
+		courant++;
+		
+	}
+	//pour chaque état de la version déterministe on l'ajoute aux états finaux si un de ces composants est un état final de la version non déterministe
+	nbEtatsFinauxDeter = 0;
+	for (i = 0; i < nbEtatsDeter; i++)
+	{
+		etatFinalAjoute = 0;
+		for (j = 0; j < compEtat[i]; j++)
+		{
+			for (k = 0; k < nonDeter->nbEtatsFinaux; k++)
+			{
+				if(tableEtat[i][j] == nonDeter->final[k] && etatFinalAjoute == 0)
+				{
+					nbEtatsFinauxDeter++;
+					if(nbEtatsFinauxDeter == 1)
+					{
+						finalDeter = malloc(sizeof(int));
+					}
+					else
+					{
+						finalDeter = realloc(finalDeter, sizeof(int)*nbEtatsFinauxDeter);
+					}
+					finalDeter[nbEtatsFinauxDeter-1] = i;
+					etatFinalAjoute = 1;
+				}
+			}
+		}
+	}
+	//on initialise la version déterministe
+	construireAFDVierge(deter, nbEtatsDeter, nbEtatsFinauxDeter);
+	
+	//l'état initial est toujours 0, il est traité manuellement avant la boucle 
+	deter->initial = 0;
+
+	//on ajoute les états finaux découverts à la version déterministe
+	for (i = 0; i < nbEtatsFinauxDeter; i++)
+	{
+		deter->final[i] = finalDeter[i];
+	}
+	free(finalDeter);
+
+	//on ajoute les transitions découvertes à la version déterministe
+	for (i = 0; i < 256; i++)
+	{
+		for (j = 0; j < deter->nbEtats; j++)
+		{
+			deter->transition[i][j] = transitionDeter[i][j];
+		}
+		//on libère le tableau de transition par la même occasion
+		free(transitionDeter[i]);
+	}
+
+	//on libère le reste des tableaux intermédiaires
+	for(i = 0; i < nbEtatsDeter; i++)
+	{
+		free(tableEtat[i]);
+	}
+	free(tableEtat);
+	free(compEtat);
+}
+
+int est_meme_etat(int compEtat1, int compEtat2, int* tableEtat1, int* tableEtat2)
+{
+	//booléen valeur de retour
+	int identique;
+
+	//indique si deux composants sont en commun entre deux états
+	int commun;
+
+	//compteurs de boucle
+	int i,j;
+
+	//on initialise identique à vrai
+	identique = 1;
+
+	//si les deux états n'ont pas le même nombre de composants ils ne sont pas identiques
+	if(compEtat1 != compEtat2)
+	{
+		identique = 0;
+	}
+	else //on vérifie que chaque composant de l'état 1 est dans l'état 2
+	{
+		for (i = 0; i < compEtat1; i++)
+		{
+			commun = 0;
+			for (j = 0; j < compEtat2; j++)
+			{
+				if(tableEtat1[i] == tableEtat2[j])
+				{
+					commun = 1;
+				}
+			}
+			//si un composant de l'état 1 n'est pas dans l'état 2 alors on passe le booléen à faux
+			if(commun == 0)
+			{
+				identique = 0;
+			}
+		}
+	}
+	//on retourne notre booléen
+	return identique;
+}
+
+int est_reconnu(char* mot, int longueurMot, AFD* automate)
+{
+	//état courant pendant l'exécution
+	int etatCourant;
+
+	//compteur de boucle
+	int i;
+
+	//booléen valeur de retour
+	int reconnu;
+
+	//on initialise la valeur de retour à faux
+	reconnu = 0;
+
+	//l'état courant est initilement l'état intial
+	etatCourant = automate->initial;
+
+	//pour chaque caractère composant le mot
+	for (i = 0; i < longueurMot; i++)
+	{
+		printf("lecture de %c\n",mot[i] );
+		//si il existe une transition depuis l'état courant par ce caractère 
+		if(automate->transition[mot[i]][etatCourant] != -1)
+		{
+			//l'état courant devient la destination de cette transition
+			etatCourant = automate->transition[mot[i]][etatCourant];
+			printf("transition vers : %d\n", etatCourant);
+		}
+	}
+
+	//si l'état courant à la fin de l'exécutuion fait partie des états finaux on passe la valeur de retour à vrai
+	for(i = 0; i < automate->nbEtatsFinaux; i++)
+	{
+		if(automate->final[i] == etatCourant)
+		{
+			reconnu = 1;
+			printf("%d est accepteur\n",etatCourant );
+		}
+	}
+	//on retourne notre valeur de retour
+	return reconnu;
+}
+
 void minimiser(AFD* automate, AFD* minimal)
 {
 	//compteurs de boucles
@@ -490,6 +1100,9 @@ void minimiser(AFD* automate, AFD* minimal)
 
 	//booléen indiquant si deux états ou classes, ou tableaux de classes sont identiques
 	int identique;
+
+	//booléen indiquant si un état final a déjà été ajouté à la version minimale
+	int dejaAjoute;
 
 
 	//on commence par remplir le tableau de classes 1 donc le suivant doit être le 2
@@ -692,7 +1305,7 @@ void minimiser(AFD* automate, AFD* minimal)
 		}
 	}
 
-
+	//selon le dernier tableau de classes rempli on initialise et on complète l'automate minimal avec l'un ou l'autre de nos tableaux
 	if(nextClasse == 2)
 	{
 		construireAFDVierge(minimal,nbClasses1,0);
@@ -703,9 +1316,20 @@ void minimiser(AFD* automate, AFD* minimal)
 			{
 				if(automate->final[j] == i)
 				{
-					minimal->nbEtatsFinaux++;
-					minimal->final = realloc(minimal->final, sizeof(int)*minimal->nbEtatsFinaux);
-					minimal->final[minimal->nbEtatsFinaux-1] = classe1[i];
+					dejaAjoute = 0;
+					for(k = 0; k < minimal->nbEtatsFinaux; k++)
+					{
+						if(minimal->final[k] == classe1[i])
+						{
+							dejaAjoute = 1;
+						}
+					}
+					if(!dejaAjoute)
+					{
+						minimal->nbEtatsFinaux++;
+						minimal->final = realloc(minimal->final, sizeof(int)*minimal->nbEtatsFinaux);
+						minimal->final[minimal->nbEtatsFinaux-1] = classe1[i];
+					}
 				}
 			}
 			for(j = 0; j < 256; j++)
@@ -725,10 +1349,20 @@ void minimiser(AFD* automate, AFD* minimal)
 			{
 				if(automate->final[j] == i)
 				{
-					minimal->nbEtatsFinaux++;
-					minimal->final = realloc(minimal->final, sizeof(int)*minimal->nbEtatsFinaux);
-					minimal->final[minimal->nbEtatsFinaux-1] = classe2[i];
-
+					dejaAjoute = 0;
+					for(k = 0; k < minimal->nbEtatsFinaux; k++)
+					{
+						if(minimal->final[k] == classe2[i])
+						{
+							dejaAjoute = 1;
+						}
+					}
+					if(!dejaAjoute)
+					{
+						minimal->nbEtatsFinaux++;
+						minimal->final = realloc(minimal->final, sizeof(int)*minimal->nbEtatsFinaux);
+						minimal->final[minimal->nbEtatsFinaux-1] = classe2[i];
+					}
 				}
 			}
 			for(j = 0; j < 256; j++)
@@ -737,6 +1371,8 @@ void minimiser(AFD* automate, AFD* minimal)
 			}
 		}
 	}
+
+	//on libère les tableaux de transitions et de classes 
 	for (i = 0; i < 256; i++)
 	{
 		free(transitionClasse[i]);
@@ -744,459 +1380,4 @@ void minimiser(AFD* automate, AFD* minimal)
 	free(classe1);
 	free(classe2);
 
-}
-
-int est_reconnu(char* mot, int longueurMot, AFD* automate)
-{
-	int etatCourant;
-	int i;
-	int reconnu;
-	reconnu = 0;
-	etatCourant = automate->initial;
-
-	for (i = 0; i < longueurMot; i++)
-	{
-		printf("lecture de %c\n",mot[i] );
-		if(automate->transition[mot[i]][etatCourant] != -1)
-		{
-			etatCourant = automate->transition[mot[i]][etatCourant];
-			printf("transition vers : %d\n", etatCourant);
-		}
-	}
-
-	for(i = 0; i < automate->nbEtatsFinaux; i++)
-	{
-		if(automate->final[i] == etatCourant)
-		{
-			reconnu = 1;
-			printf("%d est accepteur\n",etatCourant );
-		}
-	}
-	return reconnu;
-}
-
-void determiniser(AFND* nonDeter, AFD* deter)
-{
-	int i,j,k,l,m,n;
-	int* transitionDeter[256];
-	int nbEtatsDeter;
-	int* finalDeter;
-	int nbEtatsFinauxDeter;
-	int initialDeter;
-	int curseurEtatDeter;
-	int* tableNouvEtat;
-	int compNouvEtat;
-	int commun;
-	int** tableEtat;
-	int* compEtat;
-	int courant;
-	int duplicat;
-	int etatFinalAjoute;
-	
-
-	courant = 0;
-	nbEtatsDeter = 1;
-	compEtat = malloc(sizeof(int));
-	compEtat[courant] = nonDeter->nbEtatsInitiaux;
-	tableEtat = malloc(sizeof(int*));
-	tableEtat[courant] = malloc(sizeof(int)*compEtat[courant]);
-
-	for (i = 0; i < 256; i++){
-		transitionDeter[i] = malloc(sizeof(int));
-		transitionDeter[i][0] = -1;
-	}
-
-	for (i = 0; i < compEtat[courant]; i++)
-	{
-		tableEtat[courant][i] = nonDeter->initial[i];
-	}
-	while(courant < nbEtatsDeter)
-	{
-		for (i = 0; i < 256; i++)
-		{
-			compNouvEtat = 0;
-			for (j = 0; j < compEtat[courant]; j++)
-			{
-					for (l = 0; l < nonDeter->nbEtats; l++)
-					{
-						for (m = 0; m < nonDeter->nbTransitions[tableEtat[courant][j]][l]; m++)
-						{
-							if(nonDeter->transition[tableEtat[courant][j]][l][m] == i)
-							{
-								duplicat = 0;
-								for(n = 0; n < compNouvEtat; n++)
-								{
-									if(l==tableNouvEtat[n])
-									{
-										duplicat=1;
-									}
-								}
-								if(!duplicat)
-								{
-									compNouvEtat++;
-									if(compNouvEtat == 1)
-									{
-										tableNouvEtat = malloc(sizeof(int));
-									}
-									else
-									{
-										tableNouvEtat = realloc(tableNouvEtat, sizeof(int)*compNouvEtat);
-									}
-
-									tableNouvEtat[compNouvEtat-1] = l;
-								}
-							}
-						}
-					}
-			}
-			if(compNouvEtat > 0)
-			{
-				duplicat = 0;
-				for (j = 0; j < nbEtatsDeter; j++)
-				{
-					if(est_meme_etat(compNouvEtat,compEtat[j],tableNouvEtat,tableEtat[j]))
-					{
-						duplicat = 1;
-						transitionDeter[i][courant] = j;
-					}
-				}
-				if(duplicat==0)
-				{
-					nbEtatsDeter++;
-					
-					compEtat = realloc(compEtat, sizeof(int)*nbEtatsDeter);
-					tableEtat = realloc(tableEtat, sizeof(int*)*nbEtatsDeter);
-
-					compEtat[nbEtatsDeter-1] = compNouvEtat;
-
-					tableEtat[nbEtatsDeter-1] = malloc(sizeof(int)*compNouvEtat);
-					
-					for (j = 0; j < compNouvEtat; j++)
-					{
-						tableEtat[nbEtatsDeter-1][j] = tableNouvEtat[j];
-					}
-
-					for (j = 0; j < 256; j++)
-					{
-						transitionDeter[j] = realloc(transitionDeter[j], sizeof(int)*nbEtatsDeter);
-						transitionDeter[j][nbEtatsDeter-1] = -1;
-					}
-					transitionDeter[i][courant] = nbEtatsDeter-1;
-				}
-				
-			}
-			if(compNouvEtat > 0)
-			{
-				free(tableNouvEtat);
-			}
-		}
-		courant++;
-		
-	}
-	nbEtatsFinauxDeter = 0;
-	for (i = 0; i < nbEtatsDeter; i++)
-	{
-		etatFinalAjoute = 0;
-		for (j = 0; j < compEtat[i]; j++)
-		{
-			for (k = 0; k < nonDeter->nbEtatsFinaux; k++)
-			{
-				if(tableEtat[i][j] == nonDeter->final[k] && etatFinalAjoute == 0)
-				{
-					nbEtatsFinauxDeter++;
-					if(nbEtatsFinauxDeter == 1)
-					{
-						finalDeter = malloc(sizeof(int));
-					}
-					else
-					{
-						finalDeter = realloc(finalDeter, sizeof(int)*nbEtatsFinauxDeter);
-					}
-					finalDeter[nbEtatsFinauxDeter-1] = i;
-					etatFinalAjoute = 1;
-				}
-			}
-		}
-	}
-	construireAFDVierge(deter, nbEtatsDeter, nbEtatsFinauxDeter);
-	
-	deter->initial = 0;
-
-
-	for (i = 0; i < nbEtatsFinauxDeter; i++)
-	{
-		deter->final[i] = finalDeter[i];
-	}
-	free(finalDeter);
-
-	for (i = 0; i < 256; i++)
-	{
-		for (j = 0; j < deter->nbEtats; j++)
-		{
-			deter->transition[i][j] = transitionDeter[i][j];
-		}
-		free(transitionDeter[i]);
-	}
-
-	for(i = 0; i < nbEtatsDeter; i++)
-	{
-		free(tableEtat[i]);
-	}
-	free(tableEtat);
-	free(compEtat);
-}
-
-int est_meme_etat(int compEtat1, int compEtat2, int* tableEtat1, int* tableEtat2)
-{
-	int identique;
-	int commun;
-	int i,j;
-	identique = 1;
-
-	if(compEtat1 != compEtat2)
-	{
-		identique = 0;
-	}
-	else
-	{
-		for (i = 0; i < compEtat1; i++)
-		{
-			commun = 0;
-			for (j = 0; j < compEtat2; j++)
-			{
-				if(tableEtat1[i] == tableEtat2[j])
-				{
-					commun = 1;
-				}
-			}
-			if(commun == 0)
-			{
-				identique = 0;
-			}
-		}
-	}
-	return identique;
-}
-
-void desallouerAFD(AFD* automate)
-{
-	for (int i = 0; i < 256; i++)
-	{
-		free(automate->transition[i]);
-	}
-	free(automate->final);
-}
-
-void construireAFDVierge(AFD* automate, int nbEtats, int nbEtatsFinaux)
-{
-	automate->nbEtats = nbEtats;
-	automate->nbEtatsFinaux = nbEtatsFinaux;
-
-	for (int i = 0; i < 256; i++)
-	{
-		automate->transition[i] = malloc(sizeof(int)*automate->nbEtats);
-		for (int j = 0; j < automate->nbEtats; j++)
-		{
-			automate->transition[i][j] = -1;
-		}
-	}
-
-	automate->final = malloc(sizeof(int)*automate->nbEtatsFinaux);
-
-}
-
-void construireAFNDVierge(AFND* automate, int nbEtats, int nbEtatsInitiaux, int nbEtatsFinaux)
-{
-	automate->nbEtats = nbEtats;
-	automate->transition = malloc(sizeof(int**)*automate->nbEtats);
-
-	for (int i = 0; i < automate->nbEtats; i++)
-	{
-		automate->transition[i] = malloc(sizeof(int*)*automate->nbEtats);
-	}
-
-	automate->nbTransitions = malloc(sizeof(int**)*automate->nbEtats);
-	
-	for (int i = 0; i < automate->nbEtats; i++)
-	{
-		automate->nbTransitions[i] = malloc(sizeof(int*)*automate->nbEtats);
-		for (int j = 0; j < automate->nbEtats; j++)
-		{
-			automate->nbTransitions[i][j] = 0;
-		}
-	}
-
-	automate->nbEtatsInitiaux = nbEtatsInitiaux;
-	automate->initial = malloc(sizeof(int)*automate->nbEtatsInitiaux);
-
-
-	automate->nbEtatsFinaux = nbEtatsFinaux;
-	automate->final = malloc(sizeof(int)*automate->nbEtatsFinaux);
-}
-
-
-void construireAFNDMotVide(AFND* automate)
-{
-	construireAFNDVierge(automate, 2, 1, 1);
-	automate->initial[0] = 0;
-	automate->final[0] = 0;
-
-	automate->nbTransitions[0][0] = 0;
-	automate->nbTransitions[0][1] = 256;
-
-	automate->transition[0][1] = malloc(sizeof(int)*automate->nbTransitions[0][1]);
-
-	for (int i = 0; i < automate->nbTransitions[0][1] ; i++)
-	{
-		automate->transition[0][1][i] = i;
-	}
-}
-
-void construireAFNDLangageVide(AFND* automate)
-{
-	construireAFNDVierge(automate, 1, 1, 0);
-	automate->initial[0] = 0;
-	automate->nbTransitions[0][0] = 0;
-}
-
-void construireAFNDLangageUnCar(AFND* automate, char c)
-{
-	int i,j;
-
-	//remplissage des valeurs triviales
-	construireAFNDVierge(automate, 3, 1, 1);
-
-	//état initial
-	automate->initial[0] = 0;
-
-	//état final
-	automate->final[0] = 1;
-	
-	//nombre de transitions par couple d'états
-	//on a une transition de 0 à 1 (par c), 255 de 0 à 2 (par tous les caractères ASCII sauf c) et 256 transitions de 1 à 2 (par tous les caractères ASCII)
-	automate->nbTransitions[0][0] = 0;
-	automate->nbTransitions[0][1] = 1;
-	automate->nbTransitions[0][2] = 255;
-
-	automate->nbTransitions[1][0] = 0;
-	automate->nbTransitions[1][1] = 0;
-	automate->nbTransitions[1][2] = 256;
-
-	automate->nbTransitions[2][0] = 0;
-	automate->nbTransitions[2][1] = 0;
-	automate->nbTransitions[2][2] = 0;
-
-	//allocation des tableaux de transitions là où il en existe
-	automate->transition[0][1] = malloc(sizeof(int*)*automate->nbTransitions[0][1]);
-	automate->transition[0][2] = malloc(sizeof(int*)*automate->nbTransitions[0][2]);
-	automate->transition[1][2] = malloc(sizeof(int*)*automate->nbTransitions[1][2]);
-	
-
-	//la transition de 0 à 1 se fait par c, on met donc c dans la seule case de transition[0][1][0]
-	automate->transition[0][1][0] = c;
-
-	//on met tous les caractères ASCII sauf dans les transitions de 0 vers 2 
-	j = 0;
-	for (i = 0; i < automate->nbTransitions[0][2]; i++)
-	{
-		if (i != c)
-		{
-			automate->transition[0][2][j] = i;
-			j++;
-		}
-	}
-
-	//on met un caractère ASCII différent dans chaque case de transition[1][2] jusqu'à ce que tous les caractères ASCII y soient
-	for (i = 0; i < automate->nbTransitions[1][2]; i++)
-	{
-		//le fait que la case i contiennet i n'est pas significatif
-		//il importe seulement que le tableau de 256 cases contienne les 256 caractères peu importe leur ordre
-		automate->transition[1][2][i] = i;
-	}
-
-}
-
-void desallouerAFND(AFND* automate)
-{
-	int i,j,k;
-
-	for(i = 0; i < automate->nbEtats; i++){
-		for(j = 0; j < automate->nbEtats; j++){
-			if(automate->nbTransitions[i][j] > 0){
-				free(automate->transition[i][j]);
-			}
-		}
-		free(automate->nbTransitions[i]);
-		free(automate->transition[i]);
-	}
-
-	free(automate->nbTransitions);
-	free(automate->transition);
-	free(automate->initial);
-	free(automate->final);
-}
-
-void unionAFND(AFND* automate1, AFND* automate2, AFND* automate_union)
-{
-	int i,j,k;
-	construireAFNDVierge(automate_union, automate1->nbEtats + automate2->nbEtats, automate1->nbEtatsInitiaux + automate2->nbEtatsInitiaux, automate1->nbEtatsFinaux + automate2->nbEtatsFinaux);
-
-	//ajout des états initiaux des automates 1 et 2, les uns à la suite des autres
-	for (i = 0; i < automate_union->nbEtatsInitiaux; i++)
-	{
-		automate_union->initial[i] = automate1->initial[i];
-	}
-
-	for(i = automate1->nbEtatsInitiaux; i <automate1->nbEtatsInitiaux + automate2->nbEtatsInitiaux; i++)
-	{
-		automate_union->initial[i] = automate2->initial[i-automate1->nbEtatsInitiaux] + automate1->nbEtats;
-	}
-
-
-	//ajout des états finaux des automates 1 et 2, les uns à la suite des autres
-	for (i = 0; i < automate_union->nbEtatsFinaux; i++)
-	{
-		automate_union->final[i] = automate1->final[i];
-	}
-
-	for(i = automate1->nbEtatsFinaux; i <automate1->nbEtatsFinaux + automate2->nbEtatsFinaux; i++)
-	{
-		automate_union->final[i] = automate2->final[i-automate1->nbEtatsFinaux] + automate1->nbEtats;
-	}
-
-	//ajout des transitions de l'automate 1
-	for (i = 0; i < automate1->nbEtats; i++)
-	{
-		for (j = 0; j < automate1->nbEtats; j++)
-		{
-			automate_union->nbTransitions[i][j] = automate1->nbTransitions[i][j];
-			if(automate_union->nbTransitions[i][j] > 0)
-			{
-				automate_union->transition[i][j] = malloc(sizeof(int)*automate_union->nbTransitions[i][j]);
-			}
-
-			for (k = 0; k < automate_union->nbTransitions[i][j]; k++)
-			{
-				automate_union->transition[i][j][k] = automate1->transition[i][j][k];
-			}
-		}
-	}
-
-	//ajout des transitions de l'automate 2
-	for (i = automate1->nbEtats; i < automate1->nbEtats + automate2->nbEtats; i++)
-	{
-		for (j = automate1->nbEtats; j < automate1->nbEtats + automate2->nbEtats; j++)
-		{
-			automate_union->nbTransitions[i][j] = automate2->nbTransitions[i - automate1->nbEtats][j - automate1->nbEtats];
-			if(automate_union->nbTransitions[i][j] > 0)
-			{
-				automate_union->transition[i][j] = malloc(sizeof(int)*automate_union->nbTransitions[i][j]);
-			}
-
-			for (k = 0; k < automate_union->nbTransitions[i][j]; k++)
-			{
-				automate_union->transition[i][j][k] = automate2->transition[i - automate1->nbEtats][j - automate1->nbEtats][k];
-			}
-		}
-	}
 }
